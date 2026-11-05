@@ -35,8 +35,14 @@ namespace QuadLite.Tests
             Run("clipboard-*", TestClipboard);
             Run("cli-*", TestCli);
             Run("portable-*", TestPortable);
+            Run("layout-*", TestLayout);
+            Run("split-*", TestSplit);
+            Run("tab-*", TestTabs);
+            Run("nav-*", TestNav);
+            Run("bookmark-*", TestBookmarks);
+            Run("session-*", TestSession);
 
-            Console.WriteLine("groups=21, failed=" + failures.ToString());
+            Console.WriteLine("groups=27, failed=" + failures.ToString());
             if (failures == 0)
             {
                 Console.WriteLine("verdict: GREEN");
@@ -109,6 +115,28 @@ namespace QuadLite.Tests
             PathKey.TryNormalize(@"D:\Data\sub", out child);
             Check.True(child.IsUnder(ancestor), "is under");
             Check.False(ancestor.IsUnder(child), "not reversed");
+
+            // B3 地址栏：规范化统一走 PathKey，非法输入给结构化原因码且不导航
+            PathKey addr;
+            AddressReject why;
+            Check.True(AddressRules.TryParse("  \"D:\\Data\\a\\..\\b\"  ", out addr, out why), "address quoted + dot segments");
+            Check.Equal(@"D:\Data\b", addr.Value, "address normalized");
+            Check.Equal(AddressReject.None, why, "no reject");
+            Check.True(AddressRules.TryParse(@"\\server\share\x", out addr, out why), "address UNC");
+            Check.True(AddressRules.TryParse(@"\\?\D:\long", out addr, out why), "address long path");
+            Check.False(AddressRules.TryParse(@"\\.\PhysicalDrive0", out addr, out why), "device namespace refused");
+            Check.Equal(AddressReject.DeviceNamespace, why, "device namespace reason");
+            Check.False(AddressRules.TryParse(@"D:\..\oops", out addr, out why), "root escape refused");
+            Check.Equal(AddressReject.EscapeAboveRoot, why, "root escape reason");
+            Check.False(AddressRules.TryParse("relative\\path", out addr, out why), "relative refused");
+            Check.Equal(AddressReject.Relative, why, "relative reason");
+            Check.False(AddressRules.ShouldNavigate(AddressReject.Relative), "bad input does not navigate");
+            Check.Equal("Relative", AddressRules.RejectText(AddressReject.Relative), "structured reason text");
+            Check.True(AddressRules.IsDriveItem(@"C:\"), "drive item");
+            Check.False(AddressRules.IsDriveItem(@"C:\Data"), "non-root is not a drive item");
+            string[] drives = AddressRules.DriveDropdown(new string[] { @"C:\", @"c:\", @"D:\", "bad" });
+            Check.Equal(2, drives.Length, "drive dropdown deduped");
+            Check.Equal(@"C:\", drives[0], "drive dropdown normalized");
             return true;
         }
 
@@ -683,6 +711,224 @@ namespace QuadLite.Tests
             Check.False(PortableRoot.IsUnderConfigRoot(@"D:\Else\session.json", @"D:\App"), "outside root rejected");
             Check.True(PortableRoot.IsReadOnlyFallback(false), "unwritable config degrades to readonly");
             Check.False(PortableRoot.IsReadOnlyFallback(true), "writable config stays normal");
+            return true;
+        }
+
+        private static bool TestLayout()
+        {
+            Check.Equal(1, LayoutMath.PaneCount(LayoutMode.One), "one pane");
+            Check.Equal(2, LayoutMath.PaneCount(LayoutMode.Two), "two panes");
+            Check.Equal(3, LayoutMath.PaneCount(LayoutMode.Three), "three panes");
+            Check.Equal(4, LayoutMath.PaneCount(LayoutMode.Four), "four panes");
+
+            Check.True(LayoutMath.IsValidSlotTable(LayoutMath.Slots(LayoutMode.One), LayoutMode.One), "1-pane slot table");
+            Check.True(LayoutMath.IsValidSlotTable(LayoutMath.Slots(LayoutMode.Two), LayoutMode.Two), "2-pane slot table");
+            Check.True(LayoutMath.IsValidSlotTable(LayoutMath.Slots(LayoutMode.Three), LayoutMode.Three), "3-pane slot table");
+            Check.True(LayoutMath.IsValidSlotTable(LayoutMath.Slots(LayoutMode.Four), LayoutMode.Four), "4-pane slot table");
+
+            PaneSlot[] three = LayoutMath.Slots(LayoutMode.Three);
+            Check.Equal(3, three[0].RowSpan, "3-pane main pane RowSpan=3");
+            Check.Equal(1, three[1].RowSpan, "3-pane upper right");
+            Check.Equal(1, three[2].RowSpan, "3-pane lower right");
+
+            Check.Equal(0.0, LayoutMath.AnchorFraction(0), "anchor 0");
+            Check.Equal(0.25, LayoutMath.AnchorFraction(1), "anchor 1");
+            Check.Equal(0.5, LayoutMath.AnchorFraction(2), "anchor 2");
+            Check.Equal(0.75, LayoutMath.AnchorFraction(3), "anchor 3");
+            Check.Equal(1.0, LayoutMath.AnchorFraction(4), "anchor 4");
+            Check.Equal(-1.0, LayoutMath.AnchorFraction(5), "anchor out of range");
+
+            Check.Equal(2, LayoutMath.ResolveActivePane(LayoutMode.Four, 2), "explicit active pane");
+            Check.Equal(0, LayoutMath.ResolveActivePane(LayoutMode.Two, 3), "out-of-range active falls back");
+
+            PaneState[] panes = PaneSet.Create();
+            Check.True(PaneSet.IsComplete(panes), "complete pane set");
+            PaneState[] after = PaneSet.SwitchLayout(panes, LayoutMode.Two, LayoutMode.Four);
+            Check.True(PaneSet.LayoutKeepsObjects(panes, after), "layout switch keeps pane objects");
+            Check.Equal(4, after.Length, "four objects always allocated");
+
+            Check.True(LayoutMath.IsPaneVisible(LayoutMode.Three, 2), "pane 2 visible in 3-pane");
+            Check.False(LayoutMath.IsPaneVisible(LayoutMode.Three, 3), "pane 3 hidden in 3-pane");
+
+            // 三条负向：3 窗格退化成 4 窗格落位 / 重复 paneIndex / 未知档位
+            PaneSlot[] broken = new PaneSlot[]
+            {
+                new PaneSlot(0, 0, 0, 1, 1), new PaneSlot(1, 0, 2, 1, 1), new PaneSlot(2, 2, 2, 1, 1)
+            };
+            Check.False(LayoutMath.IsValidSlotTable(broken, LayoutMode.Three), "3-pane must not degrade to 4-pane landing");
+            PaneSlot[] dup = new PaneSlot[]
+            {
+                new PaneSlot(0, 0, 0, 3, 1), new PaneSlot(0, 0, 2, 3, 1)
+            };
+            Check.False(LayoutMath.IsValidSlotTable(dup, LayoutMode.Two), "duplicate pane id rejected");
+            Check.False(LayoutMath.IsKnownMode(5), "unknown layout rejected");
+            Check.Equal(0, LayoutMath.PaneCount((LayoutMode)5), "unknown layout has no panes");
+            return true;
+        }
+
+        private static bool TestSplit()
+        {
+            Check.Equal(0.5, SplitMath.EvenRatio, "even ratio");
+            Check.Equal(24.0, SplitMath.SnapThresholdPx, "24px snap threshold");
+            Check.Equal(0.25, SplitMath.OffsetOf(0.75), "offset stored relative to even split");
+            Check.Equal(0.75, SplitMath.RatioOf(0.25), "ratio from offset");
+            Check.True(SplitMath.IsOffsetValid(0.25), "valid offset");
+            Check.False(SplitMath.IsOffsetValid(0.6), "offset beyond half rejected");
+
+            Check.Equal(0.0, SplitMath.CollapseTo(true), "collapse to 0");
+            Check.Equal(1.0, SplitMath.CollapseTo(false), "collapse to 1");
+            Check.True(SplitMath.IsCollapsed(0.0), "0 is collapsed");
+            Check.True(SplitMath.IsCollapsed(1.0), "1 is collapsed");
+            Check.False(SplitMath.IsCollapsed(0.4), "middle ratio not collapsed");
+
+            Check.Equal(0.0, SplitMath.Snap(0.01, 1000.0), "snap near 0");
+            Check.Equal(1.0, SplitMath.Snap(0.99, 1000.0), "snap near 1");
+            Check.Equal(0.5, SplitMath.Snap(0.51, 1000.0), "snap near even split");
+            Check.Equal(0.35, SplitMath.Snap(0.35, 1000.0), "no snap away from anchors");
+
+            Check.Equal(0.75, SplitMath.Restore(0.25), "restore pre-collapse ratio");
+            Check.Equal(0.5, SplitMath.Restore(0.9), "bad offset falls back to even");
+
+            Check.Equal(0, SplitMath.ConnectionCount(LayoutMode.One), "1-pane connections");
+            Check.Equal(1, SplitMath.ConnectionCount(LayoutMode.Two), "2-pane connections");
+            Check.Equal(2, SplitMath.ConnectionCount(LayoutMode.Three), "3-pane connections");
+            Check.Equal(2, SplitMath.ConnectionCount(LayoutMode.Four), "4-pane connections");
+            Check.Equal(3, SplitMath.PaneCountAfterCollapse(LayoutMode.Three), "collapse keeps pane objects");
+            Check.True(SplitMath.OffsetSurvivesResize(0.2, 800.0, 1600.0), "offset survives resize");
+
+            // 五条负向：比例越界 / 吸附输入非法 / offset 越界 / 非法 offset 不可持久化
+            Check.False(SplitMath.IsRatioValid(-0.1), "negative ratio rejected");
+            Check.False(SplitMath.IsRatioValid(1.1), "ratio above 1 rejected");
+            Check.Equal(-1.0, SplitMath.Snap(1.2, 1000.0), "invalid snap input returns sentinel");
+            Check.False(SplitMath.IsOffsetValid(-0.75), "offset below -0.5 rejected");
+            Check.False(SplitMath.OffsetSurvivesResize(0.9, 800.0, 1600.0), "invalid offset cannot be persisted");
+            return true;
+        }
+
+        private static bool TestTabs()
+        {
+            int[] ids = new int[] { 10, 20, 30, 40 };
+            int[] moved = TabRules.Reorder(ids, 0, 2);
+            Check.NotNull(moved, "reorder produced new array");
+            Check.Equal(20, moved[0], "reorder step 1");
+            Check.Equal(30, moved[1], "reorder step 2");
+            Check.Equal(10, moved[2], "moved id lands at target");
+            Check.Equal(40, moved[3], "tail unchanged");
+            Check.Equal(10, ids[0], "input array not mutated");
+            Check.Equal(30, TabRules.ActiveAfterReorder(30, moved), "active follows id");
+            Check.Equal(30, TabRules.ColdStartActive(30, ids), "cold start does not jump to leftmost");
+            Check.True(TabRules.ColdStartKeepsActive(30, ids), "cold start keeps active");
+
+            int[] added = TabRules.Add(ids, 50);
+            Check.Equal(5, added.Length, "add tab");
+            Check.Equal(50, added[4], "new tab appended");
+            Check.Equal(4, ids.Length, "add does not mutate input");
+            int[] removed = TabRules.RemoveAt(ids, 1);
+            Check.Equal(3, removed.Length, "close tab");
+            Check.Equal(30, removed[1], "close shifts tail");
+            Check.Equal(30, TabRules.ActiveAfterClose(30, 1, removed), "closing other tab keeps active");
+            Check.Equal(10, TabRules.ActiveAfterClose(20, 0, removed), "closing active at head falls back to head");
+            Check.Equal(-1, TabRules.ActiveAfterClose(99, 0, new int[0]), "no remaining tab");
+
+            Check.True(TabRules.AreIdsUnique(ids), "ids unique");
+            Check.False(TabRules.AreIdsUnique(new int[] { 1, 1 }), "duplicate ids rejected");
+            Check.False(TabRules.IsReorderValid(ids, -1, 2), "bad source index rejected");
+            Check.True(TabRules.HasAtLeastOne(removed), "at least one tab");
+            Check.True(TabRules.AreHistoriesIndependent(new TabInfo[]
+            {
+                new TabInfo(10, null, 3, ViewMode.Details), new TabInfo(20, null, 0, ViewMode.List)
+            }), "histories independent");
+            return true;
+        }
+
+        private static bool TestNav()
+        {
+            Check.True(NavRules.ClearsFilterOn(NavAction.Navigate), "navigate clears filter");
+            Check.True(NavRules.ClearsFilterOn(NavAction.Back), "back clears filter");
+            Check.True(NavRules.ClearsFilterOn(NavAction.Forward), "forward clears filter");
+            Check.False(NavRules.ClearsFilterOn(NavAction.RefreshInPlace), "F5 keeps filter");
+            Check.True(NavRules.KeepsViewportOn(NavAction.RefreshInPlace), "F5 keeps viewport");
+            Check.True(NavRules.KeepsSelectionOn(NavAction.RefreshInPlace), "F5 keeps selection");
+            Check.False(NavRules.KeepsViewportOn(NavAction.Navigate), "navigate resets viewport");
+            Check.Equal(6, NavRules.NextGeneration(5), "generation advances");
+            Check.Equal(1, NavRules.NextGeneration(int.MaxValue), "generation wraps");
+            Check.True(NavRules.IsLateBatchDiscarded(4, 5), "late batch discarded");
+            Check.False(NavRules.ShouldApplyBatch(4, 5), "late batch not applied");
+            Check.True(NavRules.AppliesOnlyToActivePane(2, 2), "active pane only");
+            Check.False(NavRules.AppliesOnlyToActivePane(1, 2), "other pane not targeted");
+            Check.True(NavRules.CanGoBack(2), "can go back");
+            Check.False(NavRules.CanGoBack(0), "cannot go back at head");
+            Check.True(NavRules.CanGoForward(1, 4), "can go forward");
+            Check.False(NavRules.CanGoForward(3, 4), "cannot go forward at tail");
+            Check.Equal(1, NavRules.BackIndex(2), "back index");
+            Check.Equal(2, NavRules.ForwardIndex(1, 4), "forward index");
+
+            ThisPcEntry[] entries = ThisPc.Compose(new string[] { @"C:\", @"D:\", @"C:\", "bad" });
+            Check.Equal(3, entries.Length, "root + two unique drives");
+            Check.True(ThisPc.HasRoot(entries), "one synthetic root");
+            Check.Equal(2, ThisPc.CountOf(entries, ThisPcKind.Drive), "two drives");
+            Check.True(ThisPc.NeedsRealPathIcon(entries[1]), "drive uses real path icon");
+            Check.False(ThisPc.GenericIconFallbackAllowed(entries[1]), "drive must not fall back to generic icon");
+            Check.True(ThisPc.GenericIconFallbackAllowed(entries[0]), "root may use generic icon");
+            return true;
+        }
+
+        private static bool TestBookmarks()
+        {
+            PathKey dir, file;
+            PathKey.TryNormalize(@"D:\Data", out dir);
+            PathKey.TryNormalize(@"D:\Data\a.txt", out file);
+            BookmarkItem good = new BookmarkItem("data", dir, true);
+            BookmarkItem notDir = new BookmarkItem("file", file, false);
+            BookmarkItem noName = new BookmarkItem("", dir, true);
+            Check.True(BookmarkRules.CanAdd(good), "directory accepted");
+            Check.False(BookmarkRules.CanAdd(notDir), "file rejected");
+            Check.False(BookmarkRules.CanAdd(noName), "empty name rejected");
+            Check.False(BookmarkRules.CanAdd(null), "null item rejected");
+            Check.Equal(BookmarkState.Unknown, BookmarkRules.StateFor(false, true), "unprobed is unknown");
+            Check.Equal(BookmarkState.Ok, BookmarkRules.StateFor(true, true), "probed existing is ok");
+            Check.Equal(BookmarkState.Missing, BookmarkRules.StateFor(true, false), "probed missing is missing");
+
+            BookmarkItem[] mixed = new BookmarkItem[] { good, notDir, good, noName };
+            BookmarkItem[] kept = BookmarkRules.Sanitize(mixed);
+            Check.Equal(2, kept.Length, "bad items dropped, good ones kept");
+            Check.Equal(4, mixed.Length, "input not mutated");
+            Check.Equal(64, BookmarkRules.MaxItems, "limit 64");
+            Check.Equal(64, BookmarkRules.Cap(200), "cap at 64");
+            Check.Equal(2, BookmarkRules.RemainingAfterDrop(4, 1), "drop one item");
+            Check.True(BookmarkRules.BadItemIsolated(4, 1), "bad item isolated");
+            Check.Equal(2, BookmarkRules.TargetPane(2), "click targets active pane only");
+            Check.True(BookmarkRules.IsClickTargetValid(2, 2), "active pane click valid");
+            Check.False(BookmarkRules.IsClickTargetValid(1, 2), "other pane click rejected");
+
+            BookmarkItem[] many = new BookmarkItem[70];
+            for (int i = 0; i < many.Length; i++) many[i] = good;
+            Check.Equal(64, BookmarkRules.Sanitize(many).Length, "64 cap enforced");
+            return true;
+        }
+
+        private static bool TestSession()
+        {
+            Check.Equal(2, SessionRules.CurrentSchema, "current schema is 2");
+            Check.True(SessionRules.IsSchemaSupported(1), "v1 supported");
+            Check.True(SessionRules.IsSchemaSupported(2), "v2 supported");
+            Check.False(SessionRules.IsSchemaSupported(3), "v3 not supported");
+            Check.Equal(SessionReject.FutureVersion, SessionRules.RejectFor(3), "future version reject");
+            Check.True(SessionRules.FutureVersionRejectsWholeFile(SessionRules.RejectFor(3)), "future version rejects whole file");
+            Check.Equal(SessionReject.BadSchema, SessionRules.RejectFor(0), "bad schema");
+            Check.Equal(SessionReject.None, SessionRules.RejectFor(2), "current schema accepted");
+            Check.True(SessionRules.IsV1Compatible(1), "v1 compatible");
+            Check.Equal(0, SessionRules.NormalizeInt(999, 0, 4), "out-of-range integer goes to 0 not clamp");
+            Check.Equal(3, SessionRules.NormalizeInt(3, 0, 4), "in-range integer unchanged");
+            Check.Equal(LayoutMode.One, SessionRules.NormalizeLayout(99), "bad layout normalizes to one");
+            Check.Equal(LayoutMode.Three, SessionRules.NormalizeLayout(3), "known layout kept");
+            Check.Equal(0.0, SessionRules.NormalizeRatio(1.5), "bad ratio goes to 0");
+            Check.Equal(0.4, SessionRules.NormalizeRatio(0.4), "valid ratio kept");
+            Check.True(SessionRules.NormalizeBool(1), "bool 1 true");
+            Check.False(SessionRules.NormalizeBool(2), "bool 2 false");
+            Check.Equal(2, SessionRules.RemainingAfterBadItem(3, 1), "bad field isolated");
+            Check.True(SessionRules.BadItemIsolated(3, 1), "not whole file rejected");
+            Check.Equal(8, SessionRules.RequiredFields().Length, "session fields complete");
             return true;
         }
     }

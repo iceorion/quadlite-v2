@@ -45,6 +45,16 @@ CORE_TYPES = {
     "PortableRoot.cs": r"\bclass\s+PortableRoot\b",
     "OperationCoordinator.cs": r"\bclass\s+OperationCoordinator\b",
     "ResultClassifier.cs": r"\bclass\s+ResultClassifier\b",
+    # B3：布局 / 导航 / 标签 / 会话纯函数层（全部零 I/O）
+    "LayoutMath.cs": r"\bclass\s+LayoutMath\b",
+    "SplitMath.cs": r"\bclass\s+SplitMath\b",
+    "PaneState.cs": r"\bclass\s+PaneSet\b",
+    "TabModel.cs": r"\bclass\s+TabRules\b",
+    "NavModel.cs": r"\bclass\s+NavRules\b",
+    "AddressRules.cs": r"\bclass\s+AddressRules\b",
+    "BookmarkRules.cs": r"\bclass\s+BookmarkRules\b",
+    "SessionRules.cs": r"\bclass\s+SessionRules\b",
+    "ThisPc.cs": r"\bclass\s+ThisPc\b",
 }
 
 EXPECTED_GROUPS = [
@@ -53,6 +63,8 @@ EXPECTED_GROUPS = [
     "op-plan", "select-*",
     # B2 新增门卡组
     "op-*", "undo-*", "name-*", "refresh-*", "clipboard-*", "cli-*", "portable-*",
+    # B3 新增门卡组
+    "layout-*", "split-*", "tab-*", "nav-*", "bookmark-*", "session-*",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -86,6 +98,13 @@ ENUM_EXPECT = {
     "DropEffect": 4,
     "CollisionOutcome": 5,
     "CliMode": 5,
+    # B3 新增枚举
+    "LayoutMode": 4,
+    "NavAction": 4,
+    "AddressReject": 7,
+    "BookmarkState": 3,
+    "SessionReject": 4,
+    "ThisPcKind": 3,
 }
 
 

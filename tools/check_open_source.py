@@ -38,12 +38,14 @@ REQUIRED = [
     "design-v2.md", "README.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md",
     "CODE_OF_CONDUCT.md", "Directory.Build.props", "build.ps1", ".gitignore",
     "tools/check_boundaries.py", "tools/check_trace.py", "tools/run_tests.py",
-    "tools/check_core_specs.py", "tools/check_fs_specs.py",
+    "tools/check_core_specs.py", "tools/check_fs_specs.py", "tools/check_shell_specs.py",
     "src/QuadLite.Core/PathKey.cs", "src/QuadLite.Core/OperationCoordinator.cs",
+    "src/QuadLite.Core/LayoutMath.cs", "src/QuadLite.App/ShellState.cs",
     "src/QuadLite.Fs/ShellFileOperator.cs",
     "tests/QuadLite.Tests/Program.cs",
     ".github/workflows/ci.yml", "docs/adr/ADR-v2-001.md", "docs/adr/ADR-v2-002.md",
-    "docs/adr/ADR-v2-004.md", "docs/negative-controls.md", "docs/run-ledger.md",
+    "docs/adr/ADR-v2-004.md", "docs/adr/ADR-v2-005.md",
+    "docs/negative-controls.md", "docs/run-ledger.md",
 ]
 
 SENSITIVE = re.compile(
@@ -168,11 +170,11 @@ for label, cond in [
 
 # 7. 规格阶段如实标注
 na("产品程序集 GetCommandString 命中 0 次：随 B5 门卡实测（未验证）")
-na("WPF 应用 MSBuild 构建 / 单文件出包 / exe 形态 --selftest：未实跑，标「未验证」（见 ADR-v2-002 / ADR-v2-004）")
+na("真实 WPF 窗口 / XAML / 消息循环、MSBuild 应用构建、单文件出包、exe 形态 --selftest：未实跑，标「未验证」（见 ADR-v2-002 / ADR-v2-004 / ADR-v2-005）")
 na("运行期写入三段取证、高 DPI 四档、同手感：人工 / 发布线项（未验证）")
 
 src_cs = [p for p in files if p.suffix == ".cs" and "src" in p.parts]
-print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器；真实 shell 调用点未接入）" % len(src_cs))
+print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3 外壳状态内核；真实 shell 调用点与 WPF 窗口未接入）" % len(src_cs))
 print("\n文件数=%d，总字节=%d" % (len(files), sum(p.stat().st_size for p in files)))
 if errors:
     print("verdict: RED (%d)" % len(errors))

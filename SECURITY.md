@@ -4,10 +4,10 @@
 
 | 版本 | 状态 |
 |---|---|
-| 规格 / B2 编排层（当前） | 无 UI 可运行版本，不适用漏洞修复分支；`src/` 下为 L0 纯函数层 + 编排 / 端口契约 + Fs 适配器，C# runner 可在 CI 编译运行；真实文件搬运能力尚未实现 |
+| 规格 / B3 外壳状态内核（当前） | 无 UI 可运行版本，不适用漏洞修复分支；`src/` 下为 L0 纯函数层 + 编排 / 端口契约 + Fs 适配器 + 外壳状态内核，C# runner 可在 CI 编译运行；真实文件搬运能力与 WPF 窗口均未实现 |
 | M1 MVP 起（B0–B5） | 待发布；发布后按 `design-v2.md` §8.4 里程碑补充支持版本与修复策略 |
 
-B0 起工程骨架、检查链与 CI 已落地；B1 起 `src/` 有 L0 纯函数层，B2 起另有编排与适配器层，CI 以 C# 5 编译并运行零依赖 runner、另把 Fs 层编成 library（不运行），逐批结论见 `docs/run-ledger.md`。但 CI **不含 WPF 应用构建，也不运行真实 shell 搬运**：`IFileOperation`、系统剪贴板、watcher 行为、冲突 / 进度 UI、单文件出包与 exe 形态 `--selftest` 均未实跑，结论记「未验证」（见 `docs/adr/ADR-v2-002.md` 与 `docs/adr/ADR-v2-004.md`）。下面的日志与崩溃摘要格式是**数据格式规范**（`design-v2.md` §5.5 / §6.4），不是已实现功能。
+B0 起工程骨架、检查链与 CI 已落地；B1 起 `src/` 有 L0 纯函数层，B2 起另有编排与适配器层，B3 起另有外壳状态内核，CI 以 C# 5 编译并运行零依赖 runner、另把 Fs 层与 App 外壳状态内核分别编成 library（不运行），逐批结论见 `docs/run-ledger.md`。但 CI **不含真实 WPF 窗口 / XAML / 消息循环构建，也不运行真实 shell 搬运**：`IFileOperation`、系统剪贴板、watcher 行为、冲突 / 进度 UI、单文件出包与 exe 形态 `--selftest` 均未实跑，结论记「未验证」（见 `docs/adr/ADR-v2-002.md`、`ADR-v2-004.md` 与 `ADR-v2-005.md`）。下面的日志与崩溃摘要格式是**数据格式规范**（`design-v2.md` §5.5 / §6.4），不是已实现功能。
 
 ## 漏洞上报
 

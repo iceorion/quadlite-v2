@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- L4 表现层：WPF 外壳。B0 骨架，窗口与入口自 B3 起加入。 -->
+  <!-- L4 表现层：WPF 外壳。B0 骨架；B3 先落地外壳状态内核（零 I/O 纯逻辑），
+       真实窗口 / XAML / 入口与消息循环尚未接入，见 docs/adr/ADR-v2-005.md。 -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>

@@ -51,6 +51,23 @@ B1 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 
 B2 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；编排层的「改坏必红」由 CI 编译运行 C# runner 承担。本机安全策略禁止执行系统 C# 编译器，故本机只记静态那一半。
 
+## B3 登记
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| B3 布局 / 导航 / 会话类型齐备 | 临时副本删掉 `LayoutMath.cs` | `check-shell-specs`、`check-core-specs` |
+| B3 门卡组注册齐备 | 临时副本删掉 `Run("layout-*", TestLayout);` | `check-shell-specs`、`check-core-specs` |
+| 3 窗格主窗格必须 `RowSpan=3` | 临时副本把主窗格落位改成 4 窗格 | `check-shell-specs`、`csharp-runner` `layout-*` |
+| App 外壳骨架齐备 | 临时副本删掉 `ShellState.cs` | `check-shell-specs` |
+| L4 状态内核零 I/O、不引用测试替身 | 临时副本在 App 层注入 `using System.IO;` | `check-shell-specs`、`check-boundaries` B-02 |
+| C# 5 语法子集 | 临时副本注入字符串插值 | `check-shell-specs`、`check-core-specs` |
+| 四档槽位 / 3 窗格跨度 / 折叠 0/1 / 24px 吸附 / 相对均分偏移 / 折前恢复 | 改实现或改断言后，CI 编译运行 C# runner | `csharp-runner` `layout-*` / `split-*` |
+| 标签改序不改入参、冷启动不跳最左、导航只作用活动窗格、导航清筛选 F5 保留 | 改规则或断言 | `csharp-runner` `tab-*` / `nav-*` |
+| 书签三态与坏项隔离、会话坏值归 0 与 `future-version` 拒读 | 改规则或断言 | `csharp-runner` `bookmark-*` / `session-*` |
+| 规格与实现一致（布局方案未拍板，不得擅自改规格） | 改动 `design-v2.md` 四档声明或待决确认状态 | `check-shell-specs` |
+
+B3 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担。本机安全策略禁止执行系统 C# 编译器，故本机只记静态那一半。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -58,15 +75,18 @@ B2 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 与资源管理器同手感（NFR-04 / INV-04） | 人工验收项，写入 `CONTRIBUTING.md` | 未验证 |
 | 运行期零写入三段取证（H3）、高 DPI 四档（H1）、兼容矩阵（H2） | 发布线 H1–H6 | 未验证 |
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
-| 会话坏值归一、视图筛选与显示开关 | B2 / B4 单测 | 未验证 |
+| 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | 待 CI 首次实跑（本机未验证） |
+| 视图筛选与显示开关 | B4 单测 | 未验证 |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
 | 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
-| 冲突 / 进度非模态面板 | B3 外壳 | **未实现 / 未验证** |
-| 危险判级真实绑定 | B3 注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
+| 冲突 / 进度非模态面板 | B3 外壳（偏差，见 `ADR-v2-005` D6） | **未实现 / 未验证** |
+| 危险判级真实绑定 | 外壳注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
 | Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
-| WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B3 外壳接入构建，B7 完成出包 | 未验证（CI 不含 WPF 应用） |
+| 真实 WPF 窗口 / XAML / 消息循环 / 事件绑定 | B3 后续批次 | **未实现 / 未验证**（B3 只交状态内核与可编译骨架） |
+| 可编辑地址栏、标签拖动 UI、此电脑层真实枚举与盘符取图、会话原子写与备份 | B3 后续批次 / Fs 层 | **未实现 / 未验证** |
+| WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B7 完成出包 | 未验证（CI 不含 WPF 应用构建） |
 
 ## 远端验证（CI）
 
@@ -75,6 +95,8 @@ CI run `42013589562`（head `96a5fa4`，2026-11-05）在远端流水线实跑，
 B1 起 CI 增加 `check-core-specs` 与 `csharp-runner` 两步：后者在 Windows runner 上以 `/langversion:5 /codepage:65001` 把 L0 与 C# runner 编成单个 exe 并运行，覆盖 14 组算法门卡。**首次实跑已通过**：run `42022736600`（head `dcea585`），六个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 14 组 `ok=True`、`verdict: GREEN`。逐批结论以 `docs/run-ledger.md` 为准；本机仍不执行 C# 编译器，静态检查的绿不等于算法跑通。
 
 B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + Fs 编成单个 library，**只编译、不运行**，因此只证明结构与语法可编译，不证明任何系统能力可用；`csharp-runner` 扩到 21 组（含 7 组 B2 编排）。**首次实跑已通过**：run `42035381476`（head `1066b0d`），八个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 21 组 `ok=True`、`verdict: GREEN`，`csharp-fs-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
+
+B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Core + App 外壳状态内核编成单个 library，**只编译、不运行**，且不引用呈现框架程序集；`csharp-runner` 扩到 27 组（含 6 组 B3 外壳）。真实 WPF 窗口 / XAML / 消息循环不在 CI 内，相关项维持「未验证」。首次实跑结论待回填，见 `docs/run-ledger.md` B3 行。
 
 ## 写入例外清单
 

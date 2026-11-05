@@ -74,7 +74,7 @@ CI run `42013589562`（head `96a5fa4`，2026-11-05）在远端流水线实跑，
 
 B1 起 CI 增加 `check-core-specs` 与 `csharp-runner` 两步：后者在 Windows runner 上以 `/langversion:5 /codepage:65001` 把 L0 与 C# runner 编成单个 exe 并运行，覆盖 14 组算法门卡。**首次实跑已通过**：run `42022736600`（head `dcea585`），六个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 14 组 `ok=True`、`verdict: GREEN`。逐批结论以 `docs/run-ledger.md` 为准；本机仍不执行 C# 编译器，静态检查的绿不等于算法跑通。
 
-B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + Fs 编成单个 library，**只编译、不运行**，因此只证明结构与语法可编译，不证明任何系统能力可用；`csharp-runner` 扩到 21 组（含 7 组 B2 编排）。逐批结论见 `docs/run-ledger.md`。
+B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + Fs 编成单个 library，**只编译、不运行**，因此只证明结构与语法可编译，不证明任何系统能力可用；`csharp-runner` 扩到 21 组（含 7 组 B2 编排）。**首次实跑已通过**：run `42035381476`（head `1066b0d`），八个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 21 组 `ok=True`、`verdict: GREEN`，`csharp-fs-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

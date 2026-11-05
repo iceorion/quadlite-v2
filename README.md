@@ -13,7 +13,7 @@
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
 | 代码 | `src/QuadLite.Core/` 23 个纯函数类型（B1 的 13 个 L0 + B2 的 10 个编排 / 端口）；`src/QuadLite.Fs/` 5 个适配器；`src/QuadLite.App/` 仍为空 |
-| C# runner | 21 组门卡（14 组 L0 + 7 组 B2），CI 上以 C# 5 编译实跑；B1 首次实跑已通过（run `42022736600` / `dcea585`），B2 逐批结论见 `docs/run-ledger.md` |
+| C# runner | 21 组门卡（14 组 L0 + 7 组 B2），CI 上以 C# 5 编译实跑；B1（run `42022736600` / `dcea585`）与 B2（run `42035381476` / `1066b0d`）首次实跑均已通过，逐批结论见 `docs/run-ledger.md` |
 | 文件操作能力 | **尚不能搬运文件**：真实 `IFileOperation` 调用点隔离在注入端口，成熟 COM 绑定待接入，标「未实现 / 未验证」，见 `docs/adr/ADR-v2-004.md` |
 | 可下载版本 | 无；WPF 应用构建与单文件出包尚未实跑（未验证）；CI 编译并运行单测 runner、另把 Fs 适配器编译成 library（不运行） |
 
@@ -28,7 +28,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
 | `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs`，共六个）+ 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs）/ 检查链自测 / 开源合规 / C# runner / Fs 库编译；B0、B1 首次实跑已通过 |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs）/ 检查链自测 / 开源合规 / C# runner / Fs 库编译；B0、B1、B2 首次实跑均已通过 |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -72,7 +72,7 @@ python tools/check_fs_specs.py
 python tools/run_tests.py
 ```
 
-`check_fs_specs.py` 核对适配器齐备、端口绑定、禁止手写 COM、shell 调用点隔离与 C# 5 语法子集；`run_tests.py` 含 4 类 B2 负向对照（删编排类型 / 删门卡组 / 删适配器 / 注入手写 COM），逐条实测变红。
+`check_fs_specs.py` 核对适配器齐备、端口绑定、禁止手写 COM、shell 调用点隔离与 C# 5 语法子集；`run_tests.py` 含 4 类 B2 负向对照（删编排类型 / 删门卡组 / 删适配器 / 注入手写 COM），逐条实测变红。CI 首次实跑已通过（run `42035381476`，八个步骤全 `success`）：21 组 C# 门卡全 `ok=True`，Fs 适配器库编译成功。本机不执行 C# 编译器，该层只记 CI 远端实测。
 
 ## 首版设计目标（摘要）
 

@@ -35,7 +35,7 @@
 | Fs 库编译（CI） | Core + Fs 编成 library，不运行 | 编译成功即过；**运行期行为未验证** |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 六道 Python 门卡 + C# runner 编译运行 + Fs 库编译 | B0 首次实跑已通过（run `42013589562` / `96a5fa4`）；B1 首次实跑已通过（run `42022736600` / `dcea585`，六步全 `success`）；B2 新增 `check-fs-specs` 与 `csharp-fs-compile`，逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 六道 Python 门卡 + C# runner 编译运行 + Fs 库编译 | B0（run `42013589562` / `96a5fa4`）、B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`，八步全 `success`，含 `csharp-runner` 与 `csharp-fs-compile`）首次实跑均已通过，逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 

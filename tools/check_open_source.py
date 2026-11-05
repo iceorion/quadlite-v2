@@ -41,7 +41,7 @@ REQUIRED = [
     "tools/check_core_specs.py", "src/QuadLite.Core/PathKey.cs",
     "tests/QuadLite.Tests/Program.cs",
     ".github/workflows/ci.yml", "docs/adr/ADR-v2-001.md", "docs/adr/ADR-v2-002.md",
-    "docs/negative-controls.md", "docs/run-ledger.md",
+    "docs/adr/ADR-v2-003.md", "docs/negative-controls.md", "docs/run-ledger.md",
 ]
 
 SENSITIVE = re.compile(

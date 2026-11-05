@@ -13,7 +13,7 @@
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
 | 代码 | `src/QuadLite.Core/` 13 个 L0 纯函数类型（B1）；`src/QuadLite.Fs/` 与 `src/QuadLite.App/` 仍为空 |
-| C# runner | 14 组算法门卡，CI 上以 C# 5 编译实跑，结论见 `docs/run-ledger.md` |
+| C# runner | 14 组算法门卡，CI 上以 C# 5 编译实跑；首次实跑已通过（run `42022736600` / `dcea585`），结论见 `docs/run-ledger.md` |
 | 可下载版本 | 无；WPF 应用构建与单文件出包尚未实跑（未验证）；CI 已编译并运行 L0 单测 runner |
 
 规格中的能力描述是**首版的设计目标与验收判据**，不是已发布功能的宣称。里程碑与 MVP 定义见 `design-v2.md` §8.4。
@@ -45,7 +45,7 @@ python tools/check_open_source.py
 
 `src/QuadLite.Core/` 的 13 个类型全部是纯函数、零 I/O，按 `design-v2.md` §5 的行为契约落地：路径规范化与 SafeWalk 四道边界、列宽恒等式、七档视图、自然排序、危险判级矩阵、自有菜单项的源头消重与 ID 段、操作请求 / 结构化结果、筛后选中集、状态与错误模型。
 
-`tests/QuadLite.Tests/` 是零第三方依赖的 C# runner：14 组门卡逐行输出 `ok=True/False`，末行 `verdict:`，退出码 = 红条数。CI 在 Windows runner 上用系统 .NET Framework 编译器以 `/langversion:5` 编译并运行它，把「C# 5 语法子集」也变成机器可判的约束。本机不执行 C# 编译器，这一层如实标「未验证（CI 远端实测）」，见 `docs/adr/ADR-v2-002.md`。
+`tests/QuadLite.Tests/` 是零第三方依赖的 C# runner：14 组门卡逐行输出 `ok=True/False`，末行 `verdict:`，退出码 = 红条数。CI 在 Windows runner 上用系统 .NET Framework 编译器以 `/langversion:5` 编译并运行它，把「C# 5 语法子集」也变成机器可判的约束；首次实跑已通过（run `42022736600`，14 组全 `ok=True`）。本机不执行 C# 编译器，这一层如实标「未验证（CI 远端实测）」，见 `docs/adr/ADR-v2-002.md`。
 
 本机可复核的静态契约（零第三方依赖、无需编译器）：
 

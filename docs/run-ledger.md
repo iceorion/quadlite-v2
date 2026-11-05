@@ -8,6 +8,6 @@
 | 批次 | head_sha | check-boundaries | check-trace | run_tests | 负向对照 | §10 扫描 | 证据等级 | 备注 |
 |---|---|---|---|---|---|---|---|---|
 | B0 | `9f5f0e0` | 绿 | 绿 | 绿（15 组 / 0 失败） | 11 条全部变红 | 绿 | 实测 + CI | 工程骨架、检查链、CI、证据闭环；0 行产品代码；本机四门卡实测绿，CI run `42013589562`（head `96a5fa4`）四步全 `success`；CI 不含 .NET 构建，构建与出包仍未验证，见 `docs/adr/ADR-v2-001.md` |
-| B1 | 待回填 | 绿 | 绿 | 绿（20 组 / 0 失败） | 15 条全部变红（含 4 条 B1 静态契约） | 绿 | 本机实测；C# runner 结论待 CI 首次实跑 | L0 纯函数层 13 个类型 + C# runner 14 组门卡 + `check-core-specs`；`head_sha` 与 CI run 结论由回填提交写入；WPF 应用构建 / 出包 / exe `--selftest` 仍未验证，见 `docs/adr/ADR-v2-002.md` |
+| B1 | `dcea585` | 绿 | 绿 | 绿（20 组 / 0 失败） | 15 条全部变红（含 4 条 B1 静态契约） | 绿 | 本机实测 + CI | L0 纯函数层 13 个类型 + C# runner 14 组门卡 + `check-core-specs`；本机五道门卡实测绿；CI run `42022736600`（head `dcea585`）六步全 `success`，含 `csharp-runner` 编译 + 运行（退出码 0 ⇒ 14 组 `ok=True`、`verdict: GREEN`）；本机不执行 C# 编译器，该层本机未验证；WPF 应用构建 / 出包 / exe `--selftest` 仍未验证，见 `docs/adr/ADR-v2-002.md` |
 
 > 后续批次沿用同一行格式；每批结束时须记当次 `head_sha`，未跑过的一律写「未验证」。

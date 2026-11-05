@@ -33,7 +33,7 @@
 | C# runner（CI 编译） | 14 组 L0 算法门卡，系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」** |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 五道 Python 门卡 + C# runner 编译运行 | B0 首次实跑已通过（run `42013589562` / `96a5fa4`）；B1 新增 `check-core-specs` 与 `csharp-runner` 两步，逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 五道 Python 门卡 + C# runner 编译运行 | B0 首次实跑已通过（run `42013589562` / `96a5fa4`）；B1 首次实跑已通过（run `42022736600` / `dcea585`，六步全 `success`，含 `csharp-runner`），逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 

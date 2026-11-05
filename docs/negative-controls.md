@@ -29,7 +29,11 @@
 | 运行期零写入三段取证（H3）、高 DPI 四档（H1）、兼容矩阵（H2） | 发布线 H1–H6 | 未验证 |
 | 危险判级矩阵逐格、路径解析、会话坏值归一 | B1 / B2 单测 | 未验证 |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
-| MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B1 引入源码后接入 CI，B7 完成出包 | 未验证（B0 未实跑） |
+| MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B1 引入源码后接入 CI，B7 完成出包 | 未验证（B0 未实跑，CI 亦未包含 .NET 构建） |
+
+## 远端验证（CI）
+
+CI run `42013589562`（head `96a5fa4`，2026-11-05）在远端流水线实跑，job `gates` 结论 `success`，四个门卡步骤逐项 `success`：`check-trace`、`check-boundaries`、`run-tests (includes negative controls)`、`open-source compliance`。该 run 只覆盖四个 Python 门卡，**不包含** MSBuild 构建、出包与 exe 形态 `--selftest`，故上表三项维持「未验证」；本机实测与 CI 结果一并记在 `docs/run-ledger.md` 的 B0 行。
 
 ## 写入例外清单
 

@@ -26,7 +26,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
 | `tools/` | 四个零第三方依赖的 Python 3 检查脚本 + 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 四道门卡：静态边界、需求追踪、单测与负向对照、开源合规 |
+| `.github/workflows/ci.yml` | 四道门卡：静态边界、需求追踪、单测与负向对照、开源合规（首次实跑已通过） |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -38,7 +38,7 @@ python tools/run_tests.py
 python tools/check_open_source.py
 ```
 
-`run_tests.py` 跑正样本、11 条负向对照（故意破坏后门卡必须变红）与合规扫描，末行输出 `verdict:`，退出码 = 失败数。MSBuild 构建、单文件出包与 exe 形态 `--selftest` 在 B0 尚未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-001.md`。
+`run_tests.py` 跑正样本、11 条负向对照（故意破坏后门卡必须变红）与合规扫描，末行输出 `verdict:`，退出码 = 失败数。CI 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；CI 不含 .NET 构建，所以 MSBuild 构建、单文件出包与 exe 形态 `--selftest` 在 B0 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-001.md`。
 
 ## 首版设计目标（摘要）
 

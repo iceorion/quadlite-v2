@@ -31,7 +31,7 @@ B0 的偏差与未验证项见 `docs/adr/ADR-v2-001.md`：本机无法实跑 Pow
 | `python tools/check_open_source.py` | §10 开源合规全文扫描 | `verdict: GREEN`；命中即打回 |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 上述四道门卡 | CI 配置已提交，**首次实跑前标「未验证」**；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 上述四道门卡 | **首次实跑已通过**：run `42013589562`（head `96a5fa4`）四个门卡步骤全 `success`，见 `docs/run-ledger.md`；CI 不含 MSBuild 构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 

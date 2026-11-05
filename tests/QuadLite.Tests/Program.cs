@@ -895,7 +895,7 @@ namespace QuadLite.Tests
             Check.Equal(4, mixed.Length, "input not mutated");
             Check.Equal(64, BookmarkRules.MaxItems, "limit 64");
             Check.Equal(64, BookmarkRules.Cap(200), "cap at 64");
-            Check.Equal(2, BookmarkRules.RemainingAfterDrop(4, 1), "drop one item");
+            Check.Equal(3, BookmarkRules.RemainingAfterDrop(4, 1), "drop one item leaves three");
             Check.True(BookmarkRules.BadItemIsolated(4, 1), "bad item isolated");
             Check.Equal(2, BookmarkRules.TargetPane(2), "click targets active pane only");
             Check.True(BookmarkRules.IsClickTargetValid(2, 2), "active pane click valid");

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B1 静态契约门卡：L0 纯函数层与 C# 零依赖 runner 的结构核对。
+B1/B2 静态契约门卡：Core 纯逻辑层（L0 + 编排）与 C# 零依赖 runner 的结构核对。
 
 零第三方依赖。退出码 = 红条数。
   python tools/check_core_specs.py                 # 扫仓库
@@ -34,12 +34,25 @@ CORE_TYPES = {
     "StateModel.cs": r"\bclass\s+StateMachine\b",
     "ErrorModel.cs": r"\bclass\s+ErrorModel\b",
     "NaturalSort.cs": r"\bclass\s+NaturalComparer\b",
+    # B2：编排层与端口契约（全部零 I/O）
+    "Ports.cs": r"\binterface\s+IFileOperator\b",
+    "ClipboardData.cs": r"\bclass\s+ClipboardData\b",
+    "NamePolicy.cs": r"\bclass\s+NameRules\b",
+    "UndoStack.cs": r"\bclass\s+UndoStack\b",
+    "SelfOpGuard.cs": r"\bclass\s+SelfOpGuard\b",
+    "FsWatchThrottle.cs": r"\bclass\s+WatchThrottle\b",
+    "CliArgs.cs": r"\bclass\s+CliArgs\b",
+    "PortableRoot.cs": r"\bclass\s+PortableRoot\b",
+    "OperationCoordinator.cs": r"\bclass\s+OperationCoordinator\b",
+    "ResultClassifier.cs": r"\bclass\s+ResultClassifier\b",
 }
 
 EXPECTED_GROUPS = [
     "path-*", "safewalk-*", "cols-*", "view-*", "cell-metrics", "menu-model",
     "safety-*", "enum-*", "sort-*", "state-*", "error-*", "op-record",
     "op-plan", "select-*",
+    # B2 新增门卡组
+    "op-*", "undo-*", "name-*", "refresh-*", "clipboard-*", "cli-*", "portable-*",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -67,6 +80,12 @@ ENUM_EXPECT = {
     "PaneLoadState": 5,
     "ShellAvailabilityState": 3,
     "JobState": 4,
+    # B2 新增枚举
+    "GuardVerdict": 4,
+    "FsEventKind": 4,
+    "DropEffect": 4,
+    "CollisionOutcome": 5,
+    "CliMode": 5,
 }
 
 
@@ -103,7 +122,7 @@ def main():
 
     print("check-core-specs: root=%s" % root.name)
 
-    # 1. 类型齐备：13 个 L0 类型各在一个文件里
+    # 1. 类型齐备：L0 与 B2 编排层类型各在一个文件里
     core = root / "src" / "QuadLite.Core"
     missing_types = []
     for fname, pattern in sorted(CORE_TYPES.items()):
@@ -115,7 +134,7 @@ def main():
     if missing_types:
         bad("L0 类型不齐备：%s" % "; ".join(missing_types))
     else:
-        ok("L0 类型齐备（%d 个文件）" % len(CORE_TYPES))
+        ok("Core 类型齐备（%d 个文件）" % len(CORE_TYPES))
 
     files = cs_files(root)
     if not files:

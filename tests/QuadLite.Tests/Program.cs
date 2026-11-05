@@ -28,8 +28,15 @@ namespace QuadLite.Tests
             Run("op-record", TestOpRecord);
             Run("op-plan", TestOpPlan);
             Run("select-*", TestSelection);
+            Run("op-*", TestOps);
+            Run("undo-*", TestUndo);
+            Run("name-*", TestNames);
+            Run("refresh-*", TestRefresh);
+            Run("clipboard-*", TestClipboard);
+            Run("cli-*", TestCli);
+            Run("portable-*", TestPortable);
 
-            Console.WriteLine("groups=14, failed=" + failures.ToString());
+            Console.WriteLine("groups=21, failed=" + failures.ToString());
             if (failures == 0)
             {
                 Console.WriteLine("verdict: GREEN");
@@ -413,6 +420,269 @@ namespace QuadLite.Tests
             Check.False(SelectionRules.IsSelectable(rows[0]), "group header not selectable");
             Check.False(SelectionRules.IsSelectable(rows[2]), "filtered row not selectable");
             Check.False(SelectionRules.IsSelectable(rows[3]), "disabled row not selectable");
+            return true;
+        }
+
+        private static OpRequest MakeRequest(out PathKey s1, out PathKey s2, out PathKey dest)
+        {
+            PathKey dir;
+            PathKey.TryNormalize(@"D:\A", out dir);
+            PathKey.TryNormalize(@"D:\A\one.txt", out s1);
+            PathKey.TryNormalize(@"D:\A\two.txt", out s2);
+            PathKey.TryNormalize(@"D:\B", out dest);
+            List<PathKey> srcs = new List<PathKey>();
+            srcs.Add(s1);
+            srcs.Add(s2);
+            MenuTarget target = new MenuTarget(srcs, dir, 0, 100L);
+            return new OpRequest(target, OpKind.Copy, srcs, dest, CollisionPolicy.Ask);
+        }
+
+        private static bool TestOps()
+        {
+            PathKey s1, s2, dest, t1;
+            OpRequest req = MakeRequest(out s1, out s2, out dest);
+            PathKey.TryNormalize(@"D:\B\one.txt", out t1);
+
+            FakeClock clock = new FakeClock(1000L);
+            FakeFileOperator op = new FakeFileOperator();
+            op.AddSuccess(s1, t1);
+            op.AddFailure(s2, -2147024891, "denied");
+            FakeDangerPolicy danger = new FakeDangerPolicy();
+            FakePreflight pf = new FakePreflight();
+            FakeRefreshSink sink = new FakeRefreshSink();
+            OperationCoordinator c = new OperationCoordinator(op, danger, pf, sink, clock);
+
+            Check.False(c.IsChangeBlocked(), "idle gate open");
+            Check.True(c.IsNavigationAllowed(), "navigation allowed while busy");
+            Check.True(StateMachine.IsChangeBlocked(OperationGateState.Running), "busy gate blocks changes");
+
+            CoordinatorResult r = c.Execute(req);
+            Check.True(r.Accepted, "operation accepted");
+            Check.Equal(1, op.ExecuteCount, "single execution on fake port");
+            Check.Equal(2, r.CallbackCount, "callback count is the denominator");
+            Check.Equal(2, r.Record.Items.Count, "structured per-item result");
+            Check.Equal(ErrorClass.AccessDenied, r.Error, "partial failure classified by hr");
+            Check.True(ResultClassifier.IsPartialSuccess(r.Record), "partial success not swallowed");
+            Check.True(r.UndoPushed, "successful item enters undo stack");
+            Check.Equal(1, r.RefreshCount, "one broadcast for the whole batch");
+            Check.Equal(1, sink.Count, "single refresh sink notification");
+            Check.Equal(1, c.BroadcastCount, "no refresh storm");
+            Check.Equal(OperationGateState.Idle, r.Gate, "gate returns to idle");
+            Check.Equal(1, c.ExecuteCount, "coordinator counted one operation");
+            Check.Equal(1, danger.DecideCount, "danger policy consulted once");
+            Check.Equal(1, pf.CheckCount, "preflight consulted once");
+            Check.True(OpRecordRules.Summarize(r.Record).IndexOf("two.txt") >= 0, "failure listed per item");
+            Check.False(OpRecordRules.CanUndo(r.Record.Items[1]), "failed item cannot be undone");
+
+            FakeDangerPolicy reject = new FakeDangerPolicy();
+            reject.Verdict = GuardVerdict.Reject;
+            FakeFileOperator op2 = new FakeFileOperator();
+            OperationCoordinator c2 = new OperationCoordinator(op2, reject, new FakePreflight(), new FakeRefreshSink(), clock);
+            CoordinatorResult r2 = c2.Execute(req);
+            Check.False(r2.Accepted, "rejected by danger policy");
+            Check.Equal(0, op2.ExecuteCount, "no execution on reject");
+            Check.Equal(OperationGateState.Idle, c2.State, "gate released after reject");
+
+            FakePreflight ro = new FakePreflight();
+            ro.IsReadOnly = true;
+            OperationCoordinator c3 = new OperationCoordinator(new FakeFileOperator(), new FakeDangerPolicy(), ro, new FakeRefreshSink(), clock);
+            CoordinatorResult r3 = c3.Execute(req);
+            Check.False(r3.Accepted, "readonly preflight rejects");
+            Check.Equal(ErrorClass.ShellUnavailable, r3.Error, "readonly maps to shell unavailable");
+            Check.Equal(OperationGateState.Idle, c3.State, "gate released after preflight");
+
+            FakeFileOperator canc = new FakeFileOperator();
+            canc.AddSuccess(s1, t1);
+            canc.SetOutcome(true, ErrorClass.Cancelled);
+            OperationCoordinator c4 = new OperationCoordinator(canc, new FakeDangerPolicy(), new FakePreflight(), new FakeRefreshSink(), clock);
+            CoordinatorResult r4 = c4.Execute(req);
+            Check.True(r4.Accepted, "cancel is a reported result");
+            Check.Equal(ErrorClass.Cancelled, r4.Error, "cancelled classified");
+            Check.False(r4.UndoPushed, "cancelled does not enter undo stack");
+            Check.Equal(OperationGateState.Idle, c4.State, "cancel releases gate");
+            return true;
+        }
+
+        private static bool TestUndo()
+        {
+            PathKey s1, s2, s3, d1, d2, dest;
+            OpRequest req = MakeRequest(out s1, out s2, out dest);
+            PathKey.TryNormalize(@"D:\A\three.txt", out s3);
+            PathKey.TryNormalize(@"D:\B\one.txt", out d1);
+            PathKey.TryNormalize(@"D:\B\two.txt", out d2);
+
+            List<OpItem> items = new List<OpItem>();
+            items.Add(new OpItem(s1, d1, 0, ""));
+            items.Add(new OpItem(s2, d2, 0, ""));
+            items.Add(new OpItem(s3, null, -1, "unknown target"));
+            OpRecord rec = new OpRecord(items, 3, false, ErrorClass.PartialSuccess);
+
+            Check.Equal(2, OpRecordRules.SuccessCount(rec), "two successful items");
+            Check.Equal(3, OpRecordRules.Denominator(rec), "callback count is denominator");
+            Check.False(UndoRules.CanPush(items[2], OpKind.Copy), "unknown target cannot be undone");
+            Check.False(UndoRules.CanPush(items[0], OpKind.PermanentDelete), "permanent delete cannot be undone");
+            Check.True(UndoRules.CanPushRecord(rec, OpKind.Copy), "record has undoable items");
+
+            UndoStack stack = new UndoStack();
+            Check.True(stack.Push(rec, OpKind.Copy, 1L), "push accepted");
+            Check.Equal(1, stack.Count, "one batch counts as one step");
+            Check.Equal(2, stack.Peek().ItemCount, "only undoable items kept");
+            for (int i = 0; i < 25; i++) stack.Push(rec, OpKind.Copy, 1L);
+            Check.Equal(20, stack.Count, "capacity 20, session only");
+            Check.NotNull(stack.Pop(), "pop returns a step");
+            Check.Equal(19, stack.Count, "pop removes one step");
+
+            FakeFileOperator op = new FakeFileOperator();
+            OperationCoordinator c = new OperationCoordinator(op, new FakeDangerPolicy(), new FakePreflight(), new FakeRefreshSink(), new FakeClock(1L));
+            Check.True(c.UndoProbe.Push(rec, OpKind.Copy, 1L), "shared stack accepts step");
+            Check.True(c.UndoLast(), "undo executes reverse call");
+            Check.Equal(1, op.ExecuteCount, "undo calls the same port in reverse");
+            Check.Equal(0, c.UndoCount, "step consumed after undo");
+            Check.False(c.UndoLast(), "empty stack cannot undo");
+
+            OpRequest otherPane = MakeRequest(out s1, out s2, out dest);
+            Check.Equal(0, otherPane.Target.PaneId, "snapshot is captured per invocation");
+            Check.Equal(20, UndoRules.Capacity, "capacity matches the spec");
+            return true;
+        }
+
+        private static bool TestNames()
+        {
+            Check.True(NameRules.IsValidFileName("a.txt"), "plain name valid");
+            Check.False(NameRules.IsValidFileName(""), "empty invalid");
+            Check.False(NameRules.IsValidFileName("a/b"), "separator invalid");
+            Check.False(NameRules.IsValidFileName("a<b"), "angle bracket invalid");
+            Check.False(NameRules.IsValidFileName("CON"), "device name invalid");
+            Check.False(NameRules.IsValidFileName("a."), "trailing dot invalid");
+            Check.False(NameRules.IsValidFileName("a "), "trailing space invalid");
+            Check.True(NameRules.HasInvalidChars("a|b"), "pipe detected");
+
+            List<string> existing = new List<string>();
+            Check.Equal("a - 副本.txt", NameRules.CopyOf("a.txt", existing), "copy suffix");
+            existing.Add("a - 副本.txt");
+            Check.Equal("a - 副本 (2).txt", NameRules.CopyOf("a.txt", existing), "copy suffix increments");
+
+            List<string> folders = new List<string>();
+            Check.Equal("新建文件夹", NameRules.NewFolder(folders), "first new folder");
+            folders.Add("新建文件夹");
+            Check.Equal("新建文件夹 (2)", NameRules.NewFolder(folders), "new folder increments");
+
+            Check.Equal(CollisionOutcome.Proceed, NameRules.Resolve(CollisionPolicy.Ask, false), "no conflict proceeds");
+            Check.Equal(CollisionOutcome.Ask, NameRules.Resolve(CollisionPolicy.Ask, true), "ask on conflict");
+            Check.Equal(CollisionOutcome.Rename, NameRules.Resolve(CollisionPolicy.Rename, true), "rename on conflict");
+            Check.Equal(CollisionOutcome.Overwrite, NameRules.Resolve(CollisionPolicy.Overwrite, true), "overwrite on conflict");
+            Check.Equal(CollisionOutcome.Skip, NameRules.Resolve(CollisionPolicy.Skip, true), "skip on conflict");
+            return true;
+        }
+
+        private static bool TestRefresh()
+        {
+            WatchThrottle throttle = new WatchThrottle();
+            Check.True(throttle.Register(@"D:\A", 0L), "first subscription");
+            Check.False(throttle.Register(@"D:\A", 0L), "same path subscribes once");
+            Check.Equal(1, throttle.SubscriptionCount, "single watcher");
+            Check.True(WatchThrottle.IsSingleWatcher(1), "one watcher is enough");
+            Check.False(WatchThrottle.IsSingleWatcher(2), "two watchers would storm");
+
+            PathKey p1, p2;
+            PathKey.TryNormalize(@"D:\A\one.txt", out p1);
+            PathKey.TryNormalize(@"D:\B\two.txt", out p2);
+            Check.True(throttle.ShouldBroadcast(new FsEvent(p1, FsEventKind.Changed, 100L)), "first event passes");
+            Check.False(throttle.ShouldBroadcast(new FsEvent(p1, FsEventKind.Changed, 100L)), "same path inside debounce suppressed");
+            Check.True(throttle.ShouldBroadcast(new FsEvent(p1, FsEventKind.Changed, 100L + WatchThrottle.DebounceTicks + 1)), "after debounce passes");
+            Check.True(throttle.ShouldBroadcast(new FsEvent(p2, FsEventKind.Created, 100L)), "other path not swallowed");
+            throttle.RecordBroadcast();
+            Check.Equal(1, throttle.BroadcastCount, "one broadcast recorded");
+
+            PathKey root, touched, external;
+            PathKey.TryNormalize(@"D:\A", out root);
+            PathKey.TryNormalize(@"D:\A\one.txt", out touched);
+            PathKey.TryNormalize(@"D:\B\other.txt", out external);
+            SelfOpGuard guard = new SelfOpGuard();
+            guard.Begin(root);
+            guard.Touch(touched);
+            Check.True(guard.InOperation, "in operation");
+            Check.True(guard.ShouldSuppress(touched, 1L), "touched path suppressed");
+            Check.False(guard.ShouldSuppress(external, 1L), "external change not swallowed");
+            guard.End(500L);
+            Check.True(guard.ShouldSuppress(touched, 500L + SelfOpGuard.TrailTicks), "trailing second still suppressed");
+            Check.False(guard.ShouldSuppress(touched, 500L + SelfOpGuard.TrailTicks + 1L), "trail expires");
+            Check.True(SelfOpGuard.IsTrailExpired(500L, 500L + SelfOpGuard.TrailTicks + 1L), "trail expiry is a pure function");
+            return true;
+        }
+
+        private static bool TestClipboard()
+        {
+            PathKey p1, p2;
+            PathKey.TryNormalize(@"D:\A\one.txt", out p1);
+            PathKey.TryNormalize(@"D:\A\two.txt", out p2);
+            List<PathKey> items = new List<PathKey>();
+            items.Add(p1);
+            items.Add(p2);
+            ClipboardData data = new ClipboardData(items, DropEffect.Copy);
+            Check.True(ClipboardRules.IsValid(data), "two distinct paths valid");
+            Check.Equal(2, data.Items.Count, "immutable copy kept");
+            Check.Equal("CF_HDROP", ClipboardRules.FormatName, "system format name");
+            Check.True(ClipboardRules.Describe(data).IndexOf("Preferred DropEffect") >= 0, "effect exposed");
+
+            List<PathKey> dup = new List<PathKey>();
+            dup.Add(p1);
+            dup.Add(p1);
+            Check.False(ClipboardRules.IsValid(new ClipboardData(dup, DropEffect.Copy)), "duplicates rejected");
+            Check.False(ClipboardRules.IsValid(new ClipboardData(items, DropEffect.None)), "no effect rejected");
+            Check.False(ClipboardRules.IsValid(new ClipboardData(new List<PathKey>(), DropEffect.Copy)), "empty rejected");
+
+            Check.True(ClipboardRules.IsInternalDrop(false), "pane to pane goes through coordinator");
+            Check.False(ClipboardRules.IsInternalDrop(true), "desktop uses system data object");
+            Check.Equal(DropEffect.Move, ClipboardRules.EffectFor(false, true), "shift means move");
+            Check.Equal(DropEffect.Copy, ClipboardRules.EffectFor(true, false), "ctrl means copy");
+            Check.True(ClipboardRules.NeedsSourceRefresh(true, true, DropEffect.Move), "accepted external move refreshes source");
+            Check.False(ClipboardRules.NeedsSourceRefresh(true, true, DropEffect.Copy), "external copy leaves source");
+            Check.False(ClipboardRules.NeedsSourceRefresh(true, false, DropEffect.Move), "rejected drop leaves source");
+            Check.False(ClipboardRules.NeedsSourceRefresh(false, true, DropEffect.Move), "internal drop handled by coordinator");
+            return true;
+        }
+
+        private static bool TestCli()
+        {
+            CliParseResult empty = CliArgs.Parse(new string[0]);
+            Check.True(empty.Ok, "no args is valid");
+            Check.Equal(CliMode.Normal, empty.Mode, "normal mode");
+            Check.True(empty.ParticipatesInSingleInstance, "normal mode uses single instance");
+
+            CliParseResult self = CliArgs.Parse(new string[] { "--selftest" });
+            Check.Equal(CliMode.SelfTest, self.Mode, "selftest mode");
+            Check.False(self.ParticipatesInSingleInstance, "selftest bypasses single instance");
+
+            CliParseResult diag = CliArgs.Parse(new string[] { "--diagnose" });
+            Check.Equal(CliMode.Diagnose, diag.Mode, "diagnose mode");
+            Check.False(diag.ParticipatesInSingleInstance, "diagnose bypasses single instance");
+
+            CliParseResult shot = CliArgs.Parse(new string[] { "--shot", "--split", "layout=3,colTop=0" });
+            Check.True(shot.Ok, "shot with split valid");
+            Check.Equal(CliMode.Shot, shot.Mode, "shot mode");
+            Check.Equal("layout=3,colTop=0", shot.ShotSplit, "split payload parsed");
+
+            Check.False(CliArgs.Parse(new string[] { "--split", "x" }).Ok, "split without shot rejected");
+            Check.False(CliArgs.Parse(new string[] { "--bogus" }).Ok, "unknown parameter rejected");
+            Check.True(CliArgs.LegalParameters().IndexOf("--selftest") >= 0, "legal parameters listed");
+            return true;
+        }
+
+        private static bool TestPortable()
+        {
+            Check.True(PortableRoot.IsAllowedRelative("session.json"), "plain leaf allowed");
+            Check.False(PortableRoot.IsAllowedRelative("..\\escape"), "parent traversal rejected");
+            Check.False(PortableRoot.IsAllowedRelative("C:\\absolute"), "absolute rejected");
+            Check.False(PortableRoot.IsAllowedRelative("sub\\leaf"), "nested leaf rejected");
+            Check.False(PortableRoot.IsAllowedRelative(""), "empty rejected");
+            Check.False(PortableRoot.IsAllowedRelative("CON"), "device name rejected");
+            Check.Equal(@"D:\App\data\session.json", PortableRoot.Resolve(@"D:\App", "session.json"), "config root is program local data");
+            Check.Equal("", PortableRoot.Resolve(@"D:\App", "..\\escape"), "bad leaf has no path");
+            Check.True(PortableRoot.IsUnderConfigRoot(@"D:\App\data\session.json", @"D:\App"), "root check passes");
+            Check.False(PortableRoot.IsUnderConfigRoot(@"D:\Else\session.json", @"D:\App"), "outside root rejected");
+            Check.True(PortableRoot.IsReadOnlyFallback(false), "unwritable config degrades to readonly");
+            Check.False(PortableRoot.IsReadOnlyFallback(true), "writable config stays normal");
             return true;
         }
     }

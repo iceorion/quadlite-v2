@@ -1,6 +1,6 @@
 # QuadLite
 
-一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿 → B0 工程骨架与检查链 → **B1 L0 纯函数层与 C# 零依赖 runner**。目前没有可运行的 WPF 应用，也没有可下载版本。
+一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿 → B0 工程骨架与检查链 → B1 L0 纯函数层 → **B2 编排与适配器层**。目前没有可运行的 WPF 应用，也没有可下载版本。
 
 - 许可证：MIT（见 `LICENSE`）
 - 规范：`design-v2.md`（需求、架构、接口与验收判据的唯一权威文档）
@@ -12,9 +12,10 @@
 |---|---|
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
-| 代码 | `src/QuadLite.Core/` 13 个 L0 纯函数类型（B1）；`src/QuadLite.Fs/` 与 `src/QuadLite.App/` 仍为空 |
-| C# runner | 14 组算法门卡，CI 上以 C# 5 编译实跑；首次实跑已通过（run `42022736600` / `dcea585`），结论见 `docs/run-ledger.md` |
-| 可下载版本 | 无；WPF 应用构建与单文件出包尚未实跑（未验证）；CI 已编译并运行 L0 单测 runner |
+| 代码 | `src/QuadLite.Core/` 23 个纯函数类型（B1 的 13 个 L0 + B2 的 10 个编排 / 端口）；`src/QuadLite.Fs/` 5 个适配器；`src/QuadLite.App/` 仍为空 |
+| C# runner | 21 组门卡（14 组 L0 + 7 组 B2），CI 上以 C# 5 编译实跑；B1 首次实跑已通过（run `42022736600` / `dcea585`），B2 逐批结论见 `docs/run-ledger.md` |
+| 文件操作能力 | **尚不能搬运文件**：真实 `IFileOperation` 调用点隔离在注入端口，成熟 COM 绑定待接入，标「未实现 / 未验证」，见 `docs/adr/ADR-v2-004.md` |
+| 可下载版本 | 无；WPF 应用构建与单文件出包尚未实跑（未验证）；CI 编译并运行单测 runner、另把 Fs 适配器编译成 library（不运行） |
 
 规格中的能力描述是**首版的设计目标与验收判据**，不是已发布功能的宣称。里程碑与 MVP 定义见 `design-v2.md` §8.4。
 
@@ -26,8 +27,8 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 |---|---|
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
-| `tools/` | 四个零第三方依赖的 Python 3 检查脚本 + 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 四道门卡：静态边界、需求追踪、单测与负向对照、开源合规（首次实跑已通过） |
+| `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs`，共六个）+ 正 / 负样本夹具 |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs）/ 检查链自测 / 开源合规 / C# runner / Fs 库编译；B0、B1 首次实跑已通过 |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -35,11 +36,13 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 ```
 python tools/check_trace.py
 python tools/check_boundaries.py
+python tools/check_core_specs.py
+python tools/check_fs_specs.py
 python tools/run_tests.py
 python tools/check_open_source.py
 ```
 
-`run_tests.py` 跑正样本、15 条负向对照（故意破坏后门卡必须变红）与合规扫描，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行。WPF 应用构建、单文件出包与 exe 形态 `--selftest` 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-002.md`。
+`run_tests.py` 跑正样本、19 条负向对照（故意破坏后门卡必须变红）与合规扫描，共 25 组，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行，B2 起再加 `check-fs-specs` 与 Fs 适配器库编译。WPF 应用构建、单文件出包与 exe 形态 `--selftest` 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-002.md` 与 `docs/adr/ADR-v2-004.md`。
 
 ## B1 L0 纯函数层
 
@@ -55,6 +58,21 @@ python tools/run_tests.py
 ```
 
 `check_core_specs.py` 核对类型齐备、C# 5 语法子集、枚举完备性、runner 门卡组注册与 Core 零 I/O；`run_tests.py` 含 4 类针对它的负向对照，故意破坏必须变红。
+
+## B2 编排与适配器层
+
+`src/QuadLite.Core/` 新增 10 个零 I/O 类型，落地 `design-v2.md` §5.1 / §5.3 / §5.4 / §5.12 的编排内核：端口契约、`OperationCoordinator`（串行闸门 → 判级 → 预检 → 端口执行 → 结构化结果 → 撤销入栈 → 一次刷新广播）、20 步跨窗格撤销栈、副本命名与冲突策略、两段式自操作抑制、单一订阅去抖、剪贴板数据模型、命令行解析、便携配置根、结果分类。全部跑在注入的 Fake 端口上，不依赖真实 shell。
+
+`src/QuadLite.Fs/` 有 5 个适配器：原子写、单一 watcher、目录分批枚举、剪贴板编解码、搬运端口实现。**真实 `IFileOperation` 调用点隔离在 `IShellTransport`**：§5.2 禁止手写 COM vtable，成熟绑定尚未选定，所以本批不声明接口布局、不调用真实 shell；CI 只把 Fs 层编译成 library 而不运行。因此 B2 交付的是「编排可验证 + 端口契约冻结」，**不等于能搬文件**。偏差与未验证项完整登记在 `docs/adr/ADR-v2-004.md`。
+
+本机可复核的静态契约：
+
+```
+python tools/check_fs_specs.py
+python tools/run_tests.py
+```
+
+`check_fs_specs.py` 核对适配器齐备、端口绑定、禁止手写 COM、shell 调用点隔离与 C# 5 语法子集；`run_tests.py` 含 4 类 B2 负向对照（删编排类型 / 删门卡组 / 删适配器 / 注入手写 COM），逐条实测变红。
 
 ## 首版设计目标（摘要）
 
@@ -84,6 +102,7 @@ python tools/run_tests.py
 | `CODE_OF_CONDUCT.md` | 社区行为准则 |
 | `docs/adr/ADR-v2-001.md` | B0 设计决策记录（沿用 / 修订 / 作废） |
 | `docs/adr/ADR-v2-002.md` | B1 设计决策记录（L0 契约、证据分层、C# runner 远端实跑） |
+| `docs/adr/ADR-v2-004.md` | B2 设计决策记录（三层证据、端口冻结、COM 绑定推迟、偏差登记） |
 | `docs/negative-controls.md` | 不变量 → 负向对照用例 → 应红门卡；写入例外清单；未验证项 |
 | `docs/run-ledger.md` | 每批一行，记功能提交 `head_sha` |
 | `LICENSE` | MIT 许可证 |

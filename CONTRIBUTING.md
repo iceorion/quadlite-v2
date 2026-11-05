@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-**B0 已完成**：工程骨架、检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。**B1 已完成**：`src/QuadLite.Core/` 13 个 L0 纯函数类型与 `tests/QuadLite.Tests/` 的 C# 零依赖 runner；`src/QuadLite.Fs/` / `src/QuadLite.App/` 仍为空。**B2 起**才进入编排与适配器层。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
+**B0 已完成**：工程骨架、检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。**B1 已完成**：`src/QuadLite.Core/` 13 个 L0 纯函数类型与 `tests/QuadLite.Tests/` 的 C# 零依赖 runner。**B2 已完成**：Core 新增 10 个编排 / 端口类型、Fs 新增 5 个适配器、C# runner 扩到 21 组；`src/QuadLite.App/` 仍为空，**B3 起**才进入 WPF 外壳。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
 
-偏差与未验证项见 `docs/adr/ADR-v2-001.md`（B0）与 `docs/adr/ADR-v2-002.md`（B1）：本机不执行 C# 编译器，算法门卡由 CI 远端编译实跑；WPF 应用构建与单文件出包标「未验证」，不冒充通过。
+偏差与未验证项见 `docs/adr/ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）、`ADR-v2-004.md`（B2）：本机不执行 C# 编译器，算法门卡由 CI 远端编译实跑；真实 `IFileOperation` 搬运、系统剪贴板互通、watcher 行为与冲突 / 进度 UI 均未实现或未验证；WPF 应用构建与出包标「未验证」，不冒充通过。
 
 在任何批次开工前，请先读 `design-v2.md`：它是需求、架构、接口与验收判据的唯一权威文档。
 
@@ -27,13 +27,15 @@
 |---|---|---|
 | `python tools/check_trace.py` | 需求追踪矩阵（§2.1 / §7.1 / §8.1 / 附录 C 四方一致） | `verdict: GREEN`；缺门卡、缺批次或孤立门卡即 `exit 1` |
 | `python tools/check_boundaries.py` | §4.2 的 B-01..B-07 + 六条不变量可静态项 | `verdict: GREEN`；违反即 `exit 1` |
-| `python tools/check_core_specs.py` | B1 静态契约：类型齐备 / C# 5 语法子集 / 枚举完备性 / runner 门卡组 / Core 零 I/O | `verdict: GREEN`；任一缺失即 `exit 1` |
-| `python tools/run_tests.py` | 零依赖 runner：正样本 + 15 条负向对照 + 合规扫描 | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
+| `python tools/check_core_specs.py` | B1/B2 静态契约：Core 类型齐备 / C# 5 语法子集 / 枚举完备性 / 21 组门卡注册 / Core 零 I/O | `verdict: GREEN`；任一缺失即 `exit 1` |
+| `python tools/check_fs_specs.py` | B2 静态契约：Fs 适配器齐备 / 端口绑定 / 禁止手写 COM vtable / shell 调用点隔离 / C# 5 语法 | `verdict: GREEN`；任一违反即 `exit 1` |
+| `python tools/run_tests.py` | 零依赖 runner：25 组（正样本 + 19 条负向对照 + 合规扫描） | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
 | `python tools/check_open_source.py` | §10 开源合规全文扫描 | `verdict: GREEN`；命中即打回 |
-| C# runner（CI 编译） | 14 组 L0 算法门卡，系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」** |
+| C# runner（CI 编译） | 21 组门卡（14 组 L0 + 7 组 B2 编排），系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」** |
+| Fs 库编译（CI） | Core + Fs 编成 library，不运行 | 编译成功即过；**运行期行为未验证** |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 五道 Python 门卡 + C# runner 编译运行 | B0 首次实跑已通过（run `42013589562` / `96a5fa4`）；B1 首次实跑已通过（run `42022736600` / `dcea585`，六步全 `success`，含 `csharp-runner`），逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 六道 Python 门卡 + C# runner 编译运行 + Fs 库编译 | B0 首次实跑已通过（run `42013589562` / `96a5fa4`）；B1 首次实跑已通过（run `42022736600` / `dcea585`，六步全 `success`）；B2 新增 `check-fs-specs` 与 `csharp-fs-compile`，逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 
@@ -42,10 +44,10 @@
 ```
 Directory.Build.props     共享构建属性（net48 / C# 5 / FrameworkPathOverride）
 build.ps1                 构建与出包入口
-src/QuadLite.Core/        L0 领域层（B1 已落地 13 个纯函数类型，零 I/O）
-src/QuadLite.Fs/          L3 适配器层（B2 起）
+src/QuadLite.Core/        L0 领域层 + B2 编排层（23 个纯函数 / 端口类型，零 I/O）
+src/QuadLite.Fs/          L3 适配器层（B2 已落地 5 个实现，真实 shell 调用点待接入）
 src/QuadLite.App/         L4 WPF 外壳（B3 起）
-tests/QuadLite.Tests/     C# 零依赖 runner（B1 已落地 14 组门卡）
+tests/QuadLite.Tests/     C# 零依赖 runner（21 组门卡 + Fake 端口）
 tools/                    检查链、夹具、合规扫描、静态契约核对
 .github/workflows/        CI 闸门
 docs/adr/                 设计决策记录
@@ -72,7 +74,7 @@ docs/run-ledger.md        运行账本
 
 ## 设计决策记录
 
-`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。已生效：`ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`。
+`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。已生效：`ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）、`ADR-v2-004.md`（B2）。`ADR-v2-003` 编号曾用于一次被撤回的布局改版，跳过不再复用。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`。
 
 ## 提交前开源审查
 

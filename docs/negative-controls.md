@@ -33,6 +33,24 @@
 
 B1 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；算法层的「改坏必红」由 CI 编译运行 C# runner 承担，本机不执行编译器，故本机只记静态那一半。
 
+## B2 登记
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| 编排层类型齐备 | 临时副本删掉 `OperationCoordinator.cs` | `check-core-specs` |
+| B2 门卡组注册齐备 | 临时副本删掉 `Run("op-*", TestOps);` | `check-core-specs` |
+| Fs 适配器齐备 / 端口绑定 | 临时副本删掉 `ShellFileOperator.cs` | `check-fs-specs` |
+| 禁止手写 COM vtable（§5.2） | 临时副本注入 `[ComImport]` 声明 | `check-fs-specs` |
+| 串行闸门、判级拒绝、预检只读、取消后闸门释放 | 改编排实现或断言后，CI 编译运行 C# runner | `csharp-runner` `op-*` |
+| 跨窗格撤销、20 步容量、拿不到真实位置不入栈、永久删除不入栈 | 改撤销栈或断言 | `csharp-runner` `undo-*` |
+| 副本 / 新建文件夹命名、非法字符、冲突策略 | 改命名规则或断言 | `csharp-runner` `name-*` |
+| 单一订阅去抖、两段式自操作抑制不吞外部改动 | 改抑制 / 节流或断言 | `csharp-runner` `refresh-*` |
+| 剪贴板内外部分流、Preferred DropEffect、源刷新条件 | 改分流规则或断言 | `csharp-runner` `clipboard-*` |
+| 未知参数拒绝、诊断模式不参与单实例 | 改参数解析 | `csharp-runner` `cli-*` |
+| 配置根只认程序同级 `data\`、只读降级 | 改路径判定 | `csharp-runner` `portable-*` |
+
+B2 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；编排层的「改坏必红」由 CI 编译运行 C# runner 承担。本机安全策略禁止执行系统 C# 编译器，故本机只记静态那一半。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -42,14 +60,21 @@ B1 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
 | 会话坏值归一、视图筛选与显示开关 | B2 / B4 单测 | 未验证 |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
-| C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 行） |
-| WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B3 外壳接入构建，B7 完成出包 | 未验证（CI 目前只编译 L0 + runner，不含 WPF 应用） |
+| C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
+| 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
+| 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
+| 冲突 / 进度非模态面板 | B3 外壳 | **未实现 / 未验证** |
+| 危险判级真实绑定 | B3 注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
+| Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
+| WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B3 外壳接入构建，B7 完成出包 | 未验证（CI 不含 WPF 应用） |
 
 ## 远端验证（CI）
 
 CI run `42013589562`（head `96a5fa4`，2026-11-05）在远端流水线实跑，job `gates` 结论 `success`，四个门卡步骤逐项 `success`：`check-trace`、`check-boundaries`、`run-tests (includes negative controls)`、`open-source compliance`。该 run 只覆盖四个 Python 门卡，**不包含** MSBuild 构建、出包与 exe 形态 `--selftest`，故相关项维持「未验证」；本机实测与 CI 结果一并记在 `docs/run-ledger.md` 的 B0 行。
 
 B1 起 CI 增加 `check-core-specs` 与 `csharp-runner` 两步：后者在 Windows runner 上以 `/langversion:5 /codepage:65001` 把 L0 与 C# runner 编成单个 exe 并运行，覆盖 14 组算法门卡。**首次实跑已通过**：run `42022736600`（head `dcea585`），六个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 14 组 `ok=True`、`verdict: GREEN`。逐批结论以 `docs/run-ledger.md` 为准；本机仍不执行 C# 编译器，静态检查的绿不等于算法跑通。
+
+B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + Fs 编成单个 library，**只编译、不运行**，因此只证明结构与语法可编译，不证明任何系统能力可用；`csharp-runner` 扩到 21 组（含 7 组 B2 编排）。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

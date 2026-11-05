@@ -5,7 +5,8 @@
 
 零第三方依赖；输出每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 失败数。
 负向对照按「不变量」覆盖：故意破坏一条不变量后，对应门卡必须变红。
-B1 起增加 check-core-specs 的四类负向对照；C# 算法 runner 在 CI 上编译实跑，
+B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-specs 正向 +
+两类 B2 编排 / 两类 Fs 适配器的负向对照。C# 算法 runner 在 CI 上编译实跑，
 exe 形态 --selftest 随 B7 引入。
 """
 import shutil
@@ -121,6 +122,44 @@ def mutate_enum_gap(dst):
     p.write_text(broken, encoding="utf-8")
 
 
+# ---- B2 负向对照 ----
+def negative_fs_specs(label, mutate):
+    """临时副本里破坏一条 Fs 静态契约，check-fs-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_fs_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-fs-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_coordinator(dst):
+    (dst / "src" / "QuadLite.Core" / "OperationCoordinator.cs").unlink()
+
+
+def mutate_drop_b2_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("op-*", TestOps);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_delete_shell_operator(dst):
+    (dst / "src" / "QuadLite.Fs" / "ShellFileOperator.cs").unlink()
+
+
+def mutate_inject_comimport(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellFileOperator.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: [ComImport] interface IRaw {}\n",
+                 encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -139,11 +178,12 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1)")
+    print("runner: zero-dependency gate self-test (B0 + B1 + B2)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
     expect_green("check-core-specs", script("check_core_specs.py"))
+    expect_green("check-fs-specs", script("check_fs_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -168,6 +208,10 @@ def main():
     negative_core_specs("missing-group", mutate_drop_group)
     negative_core_specs("cs6-syntax", mutate_cs6)
     negative_core_specs("enum-gap", mutate_enum_gap)
+    negative_core_specs("missing-b2-type", mutate_delete_coordinator)
+    negative_core_specs("missing-b2-group", mutate_drop_b2_group)
+    negative_fs_specs("missing-adapter", mutate_delete_shell_operator)
+    negative_fs_specs("hand-written-com", mutate_inject_comimport)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

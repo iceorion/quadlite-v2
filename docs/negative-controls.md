@@ -75,7 +75,7 @@ B3 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 与资源管理器同手感（NFR-04 / INV-04） | 人工验收项，写入 `CONTRIBUTING.md` | 未验证 |
 | 运行期零写入三段取证（H3）、高 DPI 四档（H1）、兼容矩阵（H2） | 发布线 H1–H6 | 未验证 |
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
-| 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | 待 CI 首次实跑（本机未验证） |
+| 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 视图筛选与显示开关 | B4 单测 | 未验证 |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
@@ -96,7 +96,7 @@ B1 起 CI 增加 `check-core-specs` 与 `csharp-runner` 两步：后者在 Windo
 
 B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + Fs 编成单个 library，**只编译、不运行**，因此只证明结构与语法可编译，不证明任何系统能力可用；`csharp-runner` 扩到 21 组（含 7 组 B2 编排）。**首次实跑已通过**：run `42035381476`（head `1066b0d`），八个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 21 组 `ok=True`、`verdict: GREEN`，`csharp-fs-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
-B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Core + App 外壳状态内核编成单个 library，**只编译、不运行**，且不引用呈现框架程序集；`csharp-runner` 扩到 27 组（含 6 组 B3 外壳）。真实 WPF 窗口 / XAML / 消息循环不在 CI 内，相关项维持「未验证」。首次实跑结论待回填，见 `docs/run-ledger.md` B3 行。
+B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Core + App 外壳状态内核编成单个 library，**只编译、不运行**，且不引用呈现框架程序集；`csharp-runner` 扩到 27 组（含 6 组 B3 外壳）。真实 WPF 窗口 / XAML / 消息循环不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42040769639`（head `378432a`），十个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 27 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。首个功能提交 `15d0aa9` 的 run `42040381217` 因 `bookmark-*` 断言期望值笔误在 `csharp-runner` 判红，修正提交 `378432a` 后复跑全绿；该次红不作为通过证据。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

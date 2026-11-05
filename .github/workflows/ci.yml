@@ -1,0 +1,27 @@
+name: gates
+
+# B0 闸门：静态边界 + 需求追踪 + 单测/负向对照 + 开源合规。
+# MSBuild 构建与 build.ps1 -SingleFile 随 B1 引入源码后接入；
+# exe 形态 --selftest 随 B7 接入。B0 这两项标「未验证」，见 docs/adr/ADR-v2-001.md。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gates:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: check-trace
+        run: python tools/check_trace.py
+      - name: check-boundaries
+        run: python tools/check_boundaries.py
+      - name: run-tests (includes negative controls)
+        run: python tools/run_tests.py
+      - name: open-source compliance
+        run: python tools/check_open_source.py

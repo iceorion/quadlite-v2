@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- L0 领域层：纯函数、零 I/O。B0 骨架，类型自 B1 起加入。 -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>QuadLite.Core</RootNamespace>
+    <AssemblyName>QuadLite.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

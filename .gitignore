@@ -1,0 +1,14 @@
+# 构建产物与本机运行数据一律不进仓
+bin/
+obj/
+dist/
+data/
+.vs/
+*.user
+*.suo
+*.log
+BUILD.txt
+
+# Python 检查链的运行时缓存
+__pycache__/
+*.pyc

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- L3 适配器层：系统互操作的唯一出入口。B0 骨架，实现自 B2 起加入。 -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>QuadLite.Fs</RootNamespace>
+    <AssemblyName>QuadLite.Fs</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QuadLite.Core\QuadLite.Core.csproj" />
+  </ItemGroup>
+</Project>

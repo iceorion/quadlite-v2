@@ -4,7 +4,9 @@
 
 ## 当前阶段
 
-仓库目前只有设计文档，0 行产品代码。代码提交从 `design-v2.md` §8.1 的 **B0** 批次开始，B0 会补全本文件与 `SECURITY.md` 中依赖工程骨架的构建、验收章节。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
+**B0 已完成**：工程骨架、四个检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。`src/` 下仍 0 行产品代码；**B1 起**才开始写 L0 纯函数层与 C# 零依赖 runner。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
+
+B0 的偏差与未验证项见 `docs/adr/ADR-v2-001.md`：本机无法实跑 PowerShell 构建脚本，MSBuild 构建与单文件出包标「未验证」，不冒充通过。
 
 在任何批次开工前，请先读 `design-v2.md`：它是需求、架构、接口与验收判据的唯一权威文档。
 
@@ -17,19 +19,37 @@
 | 依赖 | 无 NuGet；WPF / WIC / Windows Shell COM 均为系统 API |
 | 出包 | `build.ps1 -SingleFile` 产出单 exe + `BUILD.txt` |
 
-> 构建脚本、`tools/` 目录与 CI 配置在 B0 落地，S3 阶段尚未创建。
+> 检查链用 Python 3 标准库（零第三方依赖），本机与 CI 均可重跑并做负向对照；构建与出包仍是 `build.ps1`（Windows 专属）。门卡名 `check-boundaries` / `check-trace` 不变。
 
 ## 构建与验收（B0 起可用）
 
 | 入口 | 用途 | 判定 |
 |---|---|---|
-| `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备 |
-| `--selftest` | 无人工界面自测 | 每组一行 `组名: ok=True/False`，末行 `verdict:`；退出码 = 红条数 |
-| `tools/check-boundaries.ps1` | `design-v2.md` §4.2 七条分层边界规则 | 违反即 `exit 1` |
-| `tools/check-trace.ps1` | 需求追踪矩阵（§2.1 / §7.1 / §8.1 / 附录 C 四方一致） | 缺门卡、缺批次或孤立门卡即 `exit 1` |
-| CI | 静态边界检查 + 单测 + `--selftest` | 输出单测退出码；**毫秒 / 时序门卡只报数不判定** |
+| `python tools/check_trace.py` | 需求追踪矩阵（§2.1 / §7.1 / §8.1 / 附录 C 四方一致） | `verdict: GREEN`；缺门卡、缺批次或孤立门卡即 `exit 1` |
+| `python tools/check_boundaries.py` | §4.2 的 B-01..B-07 + 六条不变量可静态项 | `verdict: GREEN`；违反即 `exit 1` |
+| `python tools/run_tests.py` | 零依赖 runner：正样本 + 11 条负向对照 + 合规扫描 | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
+| `python tools/check_open_source.py` | §10 开源合规全文扫描 | `verdict: GREEN`；命中即打回 |
+| `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
+| exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
+| `.github/workflows/ci.yml` | 上述四道门卡 | CI 配置已提交，**首次实跑前标「未验证」**；毫秒 / 时序门卡只报数不判定 |
 
-门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`（B0 起创建）。负向对照按**不变量**覆盖，不按门卡逐条配。
+门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
+
+## 目录结构
+
+```
+Directory.Build.props     共享构建属性（net48 / C# 5 / FrameworkPathOverride）
+build.ps1                 构建与出包入口
+src/QuadLite.Core/        L0 领域层（B1 起）
+src/QuadLite.Fs/          L3 适配器层（B2 起）
+src/QuadLite.App/         L4 WPF 外壳（B3 起）
+tests/QuadLite.Tests/     零依赖单测 runner（B1 起）
+tools/                    检查链、夹具、合规扫描
+.github/workflows/        CI 闸门
+docs/adr/                 设计决策记录
+docs/negative-controls.md 负向对照与写入例外清单
+docs/run-ledger.md        运行账本
+```
 
 ## 每批 DoD
 
@@ -50,7 +70,7 @@
 
 ## 设计决策记录
 
-`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`。
+`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。首条为 `ADR-v2-001.md`。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`。
 
 ## 提交前开源审查
 

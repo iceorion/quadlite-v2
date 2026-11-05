@@ -1,6 +1,6 @@
 # QuadLite
 
-一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库当前处于 docs-first / spec-first 阶段：只有设计文档，**尚无可运行的程序，也没有产品代码**。
+一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿后 **B0 已落地工程骨架与检查链，`src/` 下仍 0 行产品代码，尚无可运行的程序**。
 
 - 许可证：MIT（见 `LICENSE`）
 - 规范：`design-v2.md`（需求、架构、接口与验收判据的唯一权威文档）
@@ -10,11 +10,35 @@
 
 | 项 | 状态 |
 |---|---|
-| 规格 | `design-v2.md` v1.1 已定稿 |
-| 代码 | 0 行；实现按 `design-v2.md` §8.1 的 B0–B8 批次逐步迁入 |
-| 可下载版本 | 无 |
+| 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
+| 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
+| 代码 | `src/` 下 0 行产品代码；实现自 B1 起按 §8.1 批次逐步迁入 |
+| 可下载版本 | 无；MSBuild 构建与单文件出包尚未实跑（未验证） |
 
 规格中的能力描述是**首版的设计目标与验收判据**，不是已发布功能的宣称。里程碑与 MVP 定义见 `design-v2.md` §8.4。
+
+## B0 工程骨架与检查链
+
+B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
+
+| 路径 | 内容 |
+|---|---|
+| `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
+| `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
+| `tools/` | 四个零第三方依赖的 Python 3 检查脚本 + 正 / 负样本夹具 |
+| `.github/workflows/ci.yml` | 四道门卡：静态边界、需求追踪、单测与负向对照、开源合规 |
+| `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
+
+本地复核（无需安装任何依赖）：
+
+```
+python tools/check_trace.py
+python tools/check_boundaries.py
+python tools/run_tests.py
+python tools/check_open_source.py
+```
+
+`run_tests.py` 跑正样本、11 条负向对照（故意破坏后门卡必须变红）与合规扫描，末行输出 `verdict:`，退出码 = 失败数。MSBuild 构建、单文件出包与 exe 形态 `--selftest` 在 B0 尚未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-001.md`。
 
 ## 首版设计目标（摘要）
 
@@ -42,9 +66,12 @@
 | `CONTRIBUTING.md` | 构建、验收、人工验收项、提交纪律 |
 | `SECURITY.md` | 日志脱敏、崩溃摘要格式、漏洞上报 |
 | `CODE_OF_CONDUCT.md` | 社区行为准则 |
+| `docs/adr/ADR-v2-001.md` | B0 设计决策记录（沿用 / 修订 / 作废） |
+| `docs/negative-controls.md` | 不变量 → 负向对照用例 → 应红门卡；写入例外清单；未验证项 |
+| `docs/run-ledger.md` | 每批一行，记功能提交 `head_sha` |
 | `LICENSE` | MIT 许可证 |
 
-`design-v2.md` 中引用的 `tools/` 脚本、`docs/adr/`、`docs/negative-controls.md` 与 `data\` 下的运行时文件，按 §8.1 的批次随实现落地，**S3 阶段尚不存在**；它们是后续批次的交付物，不是失效引用。
+`tools/`、`docs/adr/`、负向对照登记与账本已在 B0 交付；`data\` 下的运行时文件与 `docs/` 中随实现增长的批次记录按 §8.1 逐步落地，不是失效引用。
 
 ## 第三方资源
 
@@ -52,4 +79,4 @@
 
 ## 路线
 
-规格定稿 →（S4 起）按 B0–B8 一次一个功能域推进：门卡 → 负向对照 → 单测 → 账本 → 设计决策记录。每批提交前执行 `design-v2.md` §10 开源合规清单。
+规格定稿（S3）→ B0 骨架与检查链 →（B1 起）按批次一次一个功能域推进：门卡 → 负向对照 → 单测 → 账本 → 设计决策记录。每批提交前执行 `design-v2.md` §10 开源合规清单。

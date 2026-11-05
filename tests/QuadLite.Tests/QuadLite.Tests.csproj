@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    零依赖单测 runner 骨架：无第三方库、退出码 = 失败数。
+    B0 不构建本项目；Program.cs 与首批单测随 B1 的 L0 纯函数层一起加入。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>QuadLite.Tests</RootNamespace>
+    <AssemblyName>QuadLite.Tests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\QuadLite.Core\QuadLite.Core.csproj" />
+  </ItemGroup>
+</Project>

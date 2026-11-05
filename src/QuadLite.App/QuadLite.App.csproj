@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- L4 表现层：WPF 外壳。B0 骨架，窗口与入口自 B3 起加入。 -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>QuadLite.App</RootNamespace>
+    <AssemblyName>QuadLite</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\QuadLite.Core\QuadLite.Core.csproj" />
+    <ProjectReference Include="..\QuadLite.Fs\QuadLite.Fs.csproj" />
+  </ItemGroup>
+</Project>

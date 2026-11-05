@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-**B0 已完成**：工程骨架、四个检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。`src/` 下仍 0 行产品代码；**B1 起**才开始写 L0 纯函数层与 C# 零依赖 runner。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
+**B0 已完成**：工程骨架、检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。**B1 已完成**：`src/QuadLite.Core/` 13 个 L0 纯函数类型与 `tests/QuadLite.Tests/` 的 C# 零依赖 runner；`src/QuadLite.Fs/` / `src/QuadLite.App/` 仍为空。**B2 起**才进入编排与适配器层。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
 
-B0 的偏差与未验证项见 `docs/adr/ADR-v2-001.md`：本机无法实跑 PowerShell 构建脚本，MSBuild 构建与单文件出包标「未验证」，不冒充通过。
+偏差与未验证项见 `docs/adr/ADR-v2-001.md`（B0）与 `docs/adr/ADR-v2-002.md`（B1）：本机不执行 C# 编译器，算法门卡由 CI 远端编译实跑；WPF 应用构建与单文件出包标「未验证」，不冒充通过。
 
 在任何批次开工前，请先读 `design-v2.md`：它是需求、架构、接口与验收判据的唯一权威文档。
 
@@ -27,11 +27,13 @@ B0 的偏差与未验证项见 `docs/adr/ADR-v2-001.md`：本机无法实跑 Pow
 |---|---|---|
 | `python tools/check_trace.py` | 需求追踪矩阵（§2.1 / §7.1 / §8.1 / 附录 C 四方一致） | `verdict: GREEN`；缺门卡、缺批次或孤立门卡即 `exit 1` |
 | `python tools/check_boundaries.py` | §4.2 的 B-01..B-07 + 六条不变量可静态项 | `verdict: GREEN`；违反即 `exit 1` |
-| `python tools/run_tests.py` | 零依赖 runner：正样本 + 11 条负向对照 + 合规扫描 | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
+| `python tools/check_core_specs.py` | B1 静态契约：类型齐备 / C# 5 语法子集 / 枚举完备性 / runner 门卡组 / Core 零 I/O | `verdict: GREEN`；任一缺失即 `exit 1` |
+| `python tools/run_tests.py` | 零依赖 runner：正样本 + 15 条负向对照 + 合规扫描 | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
 | `python tools/check_open_source.py` | §10 开源合规全文扫描 | `verdict: GREEN`；命中即打回 |
+| C# runner（CI 编译） | 14 组 L0 算法门卡，系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」** |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 上述四道门卡 | **首次实跑已通过**：run `42013589562`（head `96a5fa4`）四个门卡步骤全 `success`，见 `docs/run-ledger.md`；CI 不含 MSBuild 构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 五道 Python 门卡 + C# runner 编译运行 | B0 首次实跑已通过（run `42013589562` / `96a5fa4`）；B1 新增 `check-core-specs` 与 `csharp-runner` 两步，逐批结论见 `docs/run-ledger.md`；CI 不含 WPF 应用构建与出包，那两项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 
@@ -40,11 +42,11 @@ B0 的偏差与未验证项见 `docs/adr/ADR-v2-001.md`：本机无法实跑 Pow
 ```
 Directory.Build.props     共享构建属性（net48 / C# 5 / FrameworkPathOverride）
 build.ps1                 构建与出包入口
-src/QuadLite.Core/        L0 领域层（B1 起）
+src/QuadLite.Core/        L0 领域层（B1 已落地 13 个纯函数类型，零 I/O）
 src/QuadLite.Fs/          L3 适配器层（B2 起）
 src/QuadLite.App/         L4 WPF 外壳（B3 起）
-tests/QuadLite.Tests/     零依赖单测 runner（B1 起）
-tools/                    检查链、夹具、合规扫描
+tests/QuadLite.Tests/     C# 零依赖 runner（B1 已落地 14 组门卡）
+tools/                    检查链、夹具、合规扫描、静态契约核对
 .github/workflows/        CI 闸门
 docs/adr/                 设计决策记录
 docs/negative-controls.md 负向对照与写入例外清单
@@ -70,7 +72,7 @@ docs/run-ledger.md        运行账本
 
 ## 设计决策记录
 
-`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。首条为 `ADR-v2-001.md`。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`。
+`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。已生效：`ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`。
 
 ## 提交前开源审查
 

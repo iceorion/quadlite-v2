@@ -1,6 +1,6 @@
 # QuadLite
 
-一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿后 **B0 已落地工程骨架与检查链，`src/` 下仍 0 行产品代码，尚无可运行的程序**。
+一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿 → B0 工程骨架与检查链 → **B1 L0 纯函数层与 C# 零依赖 runner**。目前没有可运行的 WPF 应用，也没有可下载版本。
 
 - 许可证：MIT（见 `LICENSE`）
 - 规范：`design-v2.md`（需求、架构、接口与验收判据的唯一权威文档）
@@ -12,8 +12,9 @@
 |---|---|
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
-| 代码 | `src/` 下 0 行产品代码；实现自 B1 起按 §8.1 批次逐步迁入 |
-| 可下载版本 | 无；MSBuild 构建与单文件出包尚未实跑（未验证） |
+| 代码 | `src/QuadLite.Core/` 13 个 L0 纯函数类型（B1）；`src/QuadLite.Fs/` 与 `src/QuadLite.App/` 仍为空 |
+| C# runner | 14 组算法门卡，CI 上以 C# 5 编译实跑，结论见 `docs/run-ledger.md` |
+| 可下载版本 | 无；WPF 应用构建与单文件出包尚未实跑（未验证）；CI 已编译并运行 L0 单测 runner |
 
 规格中的能力描述是**首版的设计目标与验收判据**，不是已发布功能的宣称。里程碑与 MVP 定义见 `design-v2.md` §8.4。
 
@@ -38,7 +39,22 @@ python tools/run_tests.py
 python tools/check_open_source.py
 ```
 
-`run_tests.py` 跑正样本、11 条负向对照（故意破坏后门卡必须变红）与合规扫描，末行输出 `verdict:`，退出码 = 失败数。CI 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；CI 不含 .NET 构建，所以 MSBuild 构建、单文件出包与 exe 形态 `--selftest` 在 B0 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-001.md`。
+`run_tests.py` 跑正样本、15 条负向对照（故意破坏后门卡必须变红）与合规扫描，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行。WPF 应用构建、单文件出包与 exe 形态 `--selftest` 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-002.md`。
+
+## B1 L0 纯函数层
+
+`src/QuadLite.Core/` 的 13 个类型全部是纯函数、零 I/O，按 `design-v2.md` §5 的行为契约落地：路径规范化与 SafeWalk 四道边界、列宽恒等式、七档视图、自然排序、危险判级矩阵、自有菜单项的源头消重与 ID 段、操作请求 / 结构化结果、筛后选中集、状态与错误模型。
+
+`tests/QuadLite.Tests/` 是零第三方依赖的 C# runner：14 组门卡逐行输出 `ok=True/False`，末行 `verdict:`，退出码 = 红条数。CI 在 Windows runner 上用系统 .NET Framework 编译器以 `/langversion:5` 编译并运行它，把「C# 5 语法子集」也变成机器可判的约束。本机不执行 C# 编译器，这一层如实标「未验证（CI 远端实测）」，见 `docs/adr/ADR-v2-002.md`。
+
+本机可复核的静态契约（零第三方依赖、无需编译器）：
+
+```
+python tools/check_core_specs.py
+python tools/run_tests.py
+```
+
+`check_core_specs.py` 核对类型齐备、C# 5 语法子集、枚举完备性、runner 门卡组注册与 Core 零 I/O；`run_tests.py` 含 4 类针对它的负向对照，故意破坏必须变红。
 
 ## 首版设计目标（摘要）
 
@@ -67,6 +83,7 @@ python tools/check_open_source.py
 | `SECURITY.md` | 日志脱敏、崩溃摘要格式、漏洞上报 |
 | `CODE_OF_CONDUCT.md` | 社区行为准则 |
 | `docs/adr/ADR-v2-001.md` | B0 设计决策记录（沿用 / 修订 / 作废） |
+| `docs/adr/ADR-v2-002.md` | B1 设计决策记录（L0 契约、证据分层、C# runner 远端实跑） |
 | `docs/negative-controls.md` | 不变量 → 负向对照用例 → 应红门卡；写入例外清单；未验证项 |
 | `docs/run-ledger.md` | 每批一行，记功能提交 `head_sha` |
 | `LICENSE` | MIT 许可证 |

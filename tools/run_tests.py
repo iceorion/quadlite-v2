@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B0 零依赖单测 / 自测 runner：检查链自身的正样本、负样本与合规扫描。
+零依赖单测 / 自测 runner：检查链自身的正样本、负样本与合规扫描。
 
 零第三方依赖；输出每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 失败数。
 负向对照按「不变量」覆盖：故意破坏一条不变量后，对应门卡必须变红。
-C# 版 QuadLite.Tests runner 与 exe 形态 --selftest 随 B1 / B7 引入（B0 未验证）。
+B1 起增加 check-core-specs 的四类负向对照；C# 算法 runner 在 CI 上编译实跑，
+exe 形态 --selftest 随 B7 引入。
 """
 import shutil
 import subprocess
@@ -78,6 +79,48 @@ def negative_trace():
             print("    " + out.strip().replace("\n", "\n    "))
 
 
+def negative_core_specs(label, mutate):
+    """临时副本里破坏一条静态契约，check-core-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_core_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-core-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_type(dst):
+    (dst / "src" / "QuadLite.Core" / "NaturalSort.cs").unlink()
+
+
+def mutate_drop_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("sort-*", TestSort);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_cs6(dst):
+    p = dst / "src" / "QuadLite.Core" / "ColumnLayout.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class Bad { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
+def mutate_enum_gap(dst):
+    p = dst / "src" / "QuadLite.Core" / "ErrorModel.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("SessionCorrupt, EnumFailed, DecodeFailed",
+                          "SessionCorrupt, EnumFailed, DecodeFailed, Bogus")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -96,10 +139,11 @@ def negative_open_source():
 
 
 def main():
-    print("runner: B0 zero-dependency gate self-test")
+    print("runner: zero-dependency gate self-test (B0 + B1)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
+    expect_green("check-core-specs", script("check_core_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -120,6 +164,10 @@ def main():
         negative_boundary(bad_dir / filename, rule)
 
     negative_trace()
+    negative_core_specs("missing-type", mutate_delete_type)
+    negative_core_specs("missing-group", mutate_drop_group)
+    negative_core_specs("cs6-syntax", mutate_cs6)
+    negative_core_specs("enum-gap", mutate_enum_gap)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

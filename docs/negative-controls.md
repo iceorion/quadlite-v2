@@ -21,19 +21,35 @@
 
 正样本对照：`tools/fixtures/boundaries/ok/` 三个文件必须保持门卡绿。夹具全部是可公开的文本源码，不是既有私有资产。
 
+## B1 登记
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| L0 类型齐备 | 临时副本删掉 `NaturalSort.cs` | `check-core-specs` |
+| runner 门卡组注册齐备 | 临时副本删掉 `Run("sort-*", ...)` | `check-core-specs` |
+| C# 5 语法子集 | 临时副本注入字符串插值 | `check-core-specs` |
+| 错误分类与规格表一一对应 | 临时副本给 `ErrorClass` 加一项但不同步 `ErrorSpec` 表 | `check-core-specs` |
+| 算法判据（路径 / 边界 / 列宽 / 七档 / 排序 / 危险矩阵 / 状态 / 错误 / 结构化结果 / 选中集） | 改实现或改断言后，CI 编译运行 C# runner | `csharp-runner`（14 组 `ok=False`、`verdict: RED`、退出码非 0） |
+
+B1 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；算法层的「改坏必红」由 CI 编译运行 C# runner 承担，本机不执行编译器，故本机只记静态那一半。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
 |---|---|---|
 | 与资源管理器同手感（NFR-04 / INV-04） | 人工验收项，写入 `CONTRIBUTING.md` | 未验证 |
 | 运行期零写入三段取证（H3）、高 DPI 四档（H1）、兼容矩阵（H2） | 发布线 H1–H6 | 未验证 |
-| 危险判级矩阵逐格、路径解析、会话坏值归一 | B1 / B2 单测 | 未验证 |
+| 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
+| 会话坏值归一、视图筛选与显示开关 | B2 / B4 单测 | 未验证 |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
-| MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B1 引入源码后接入 CI，B7 完成出包 | 未验证（B0 未实跑，CI 亦未包含 .NET 构建） |
+| C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 行） |
+| WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B3 外壳接入构建，B7 完成出包 | 未验证（CI 目前只编译 L0 + runner，不含 WPF 应用） |
 
 ## 远端验证（CI）
 
-CI run `42013589562`（head `96a5fa4`，2026-11-05）在远端流水线实跑，job `gates` 结论 `success`，四个门卡步骤逐项 `success`：`check-trace`、`check-boundaries`、`run-tests (includes negative controls)`、`open-source compliance`。该 run 只覆盖四个 Python 门卡，**不包含** MSBuild 构建、出包与 exe 形态 `--selftest`，故上表三项维持「未验证」；本机实测与 CI 结果一并记在 `docs/run-ledger.md` 的 B0 行。
+CI run `42013589562`（head `96a5fa4`，2026-11-05）在远端流水线实跑，job `gates` 结论 `success`，四个门卡步骤逐项 `success`：`check-trace`、`check-boundaries`、`run-tests (includes negative controls)`、`open-source compliance`。该 run 只覆盖四个 Python 门卡，**不包含** MSBuild 构建、出包与 exe 形态 `--selftest`，故相关项维持「未验证」；本机实测与 CI 结果一并记在 `docs/run-ledger.md` 的 B0 行。
+
+B1 起 CI 增加 `check-core-specs` 与 `csharp-runner` 两步：后者在 Windows runner 上以 `/langversion:5 /codepage:65001` 把 L0 与 C# runner 编成单个 exe 并运行，覆盖 14 组算法门卡。逐批结论以 `docs/run-ledger.md` 为准；本机仍不执行 C# 编译器，静态检查的绿不等于算法跑通。
 
 ## 写入例外清单
 

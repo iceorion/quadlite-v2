@@ -155,7 +155,7 @@ def main():
             print("  PASS  %s: ok=True" % rule)
     print("  N/A   INV-04: 未验证（与资源管理器同手感，人工项 NFR-04）")
     print("  N/A   INV-01/02/03 运行期写入取证：未验证（发布线 H3，不在静态检查范围）")
-    print("  N/A   INV-05 危险判级矩阵逐格：未验证（B1/B2 单测）")
+    print("  N/A   INV-05 危险判级矩阵逐格：静态检查不覆盖，由 C# runner 与 B2 单测实测")
     if doc_problems:
         reds += 1
         for d in doc_problems:
@@ -163,7 +163,7 @@ def main():
     else:
         print("  PASS  INV-06: ok=True（%s）" % inv06_state)
     if nfiles == 0:
-        print("  NOTE  src/ 下无产品源码（B0 骨架），规则由 tools/fixtures 负向对照覆盖")
+        print("  NOTE  src/ 下无产品源码，规则由 tools/fixtures 负向对照覆盖")
 
     if reds:
         print("verdict: RED (%d)" % reds)

@@ -57,8 +57,16 @@ namespace QuadLite.Tests
             Run("menu-sentinel", TestMenuSentinel);
             Run("menu-single-file", TestMenuSingleFile);
             Run("menu-release", TestMenuRelease);
+            Run("icon-*", TestIcons);
+            Run("thumb-whitelist", TestThumbWhitelist);
+            Run("thumb-exif", TestThumbExif);
+            Run("thumb-queue", TestThumbQueue);
+            Run("thumb-cache", TestThumbCache);
+            Run("thumb-video", TestThumbVideo);
+            Run("thumb-toggle", TestThumbToggle);
+            Run("thumb-nowrite", TestThumbNoWrite);
 
-            Console.WriteLine("groups=43, failed=" + failures.ToString());
+            Console.WriteLine("groups=51, failed=" + failures.ToString());
             if (failures == 0)
             {
                 Console.WriteLine("verdict: GREEN");
@@ -1461,6 +1469,225 @@ namespace QuadLite.Tests
             Check.True(MenuReleaseRules.OrderIsMenuThenCom(MenuReleaseRules.ReleaseOrder()), "menu then COM order");
             Check.False(MenuReleaseRules.OrderIsMenuThenCom(new string[] { "COM", "HMENU" }), "wrong order rejected");
             Check.False(MenuReleaseRules.OrderIsMenuThenCom(null), "null order rejected");
+            return true;
+        }
+
+        private static bool TestIcons()
+        {
+            // icon-*：四级通道 / exe 两段式 / jumbo 透明回落 / 盘符逐档取图 / 可见区间单位
+            Check.Equal(4, IconChannelRules.ChannelCount, "four icon channels");
+            Check.Equal(4, IconChannelRules.Levels().Length, "four declared levels");
+            Check.True(IconChannelRules.IsKnown(16), "16 px known");
+            Check.True(IconChannelRules.IsKnown(48), "48 px known");
+            Check.True(IconChannelRules.IsKnown(96), "96 px known");
+            Check.True(IconChannelRules.IsKnown(256), "256 px known");
+            Check.False(IconChannelRules.IsKnown(32), "unknown px rejected");
+            Check.Equal(256, IconChannelRules.ForView(ViewMode.ExtraLarge), "extra large channel");
+            Check.Equal(96, IconChannelRules.ForView(ViewMode.Large), "large channel");
+            Check.Equal(48, IconChannelRules.ForView(ViewMode.Medium), "medium channel");
+            Check.Equal(16, IconChannelRules.ForView(ViewMode.Details), "details channel");
+            Check.Equal(48, IconChannelRules.ResolveJumbo(true), "transparent jumbo falls back");
+            Check.Equal(256, IconChannelRules.ResolveJumbo(false), "opaque jumbo stays 256");
+            Check.True(IconChannelRules.JumboFallsBack(true), "transparent triggers fallback");
+            Check.Equal(2, IconChannelRules.ExeStageCount, "exe icon two stages");
+            Check.True(IconChannelRules.IsTwoStageForExe(".EXE"), "exe extension normalized");
+            Check.False(IconChannelRules.IsTwoStageForExe("png"), "non-exe single stage");
+            Check.Equal(2, IconChannelRules.ExeStages().Length, "two stage names");
+            Check.True(IconChannelRules.StageOrderIsGenericThenReal(IconChannelRules.ExeStages()),
+                       "generic then real path");
+            Check.False(IconChannelRules.StageOrderIsGenericThenReal(
+                            new string[] { "real-path", "extension-generic" }), "wrong order rejected");
+            Check.True(IconChannelRules.DriveValidAt(48, true, false), "drive differs per level");
+            Check.False(IconChannelRules.DriveValidAt(48, true, true), "generic icon rejected");
+            Check.False(IconChannelRules.DriveValidAt(32, true, false), "unknown level rejected");
+            VisibleSpan items = new VisibleSpan(SpanUnit.Items, 0, 10);
+            VisibleSpan pixels = new VisibleSpan(SpanUnit.Pixels, 0, 100);
+            Check.True(IconChannelRules.UnitSafe(items, new VisibleSpan(SpanUnit.Items, 0, 5)),
+                       "same unit safe");
+            Check.True(IconChannelRules.MixedUnitRejected(items, pixels), "mixed units rejected");
+            Check.True(IconChannelRules.NeedsThumb(ViewMode.ExtraLarge), "jumbo needs thumb");
+            Check.False(IconChannelRules.NeedsThumb(ViewMode.Details), "details needs no thumb");
+            return true;
+        }
+
+        private static bool TestThumbWhitelist()
+        {
+            // thumb-whitelist：WIC 内置 14 种、有意缺口、.ts 1 MB 下限、零第三方解码器
+            Check.Equal(14, ThumbWhitelistRules.WhitelistCount, "fourteen WIC extensions");
+            Check.Equal(14, ThumbWhitelistRules.Extensions().Length, "whitelist length");
+            Check.True(ThumbWhitelistRules.IsWhitelisted(".PNG"), "leading dot normalized");
+            Check.True(ThumbWhitelistRules.IsWhitelisted("jpg"), "jpeg family allowed");
+            Check.False(ThumbWhitelistRules.IsWhitelisted("webp"), "webp needs third party decoder");
+            Check.True(ThumbWhitelistRules.IsIntentionalGap("heic"), "heic gap declared");
+            Check.True(ThumbWhitelistRules.IsIntentionalGap("pdf"), "pdf gap declared");
+            Check.False(ThumbWhitelistRules.IsIntentionalGap("png"), "png is not a gap");
+            Check.Equal(1048576L, ThumbWhitelistRules.TsMinBytes, "one mebibyte gate");
+            Check.False(ThumbWhitelistRules.SizeGatePassed(1048575L), "below gate rejected");
+            Check.True(ThumbWhitelistRules.SizeGatePassed(1048576L), "at gate accepted");
+            Check.True(ThumbWhitelistRules.NeedsSizeGate(".TS"), "ts size gate");
+            Check.False(ThumbWhitelistRules.NeedsSizeGate("png"), "no gate for images");
+            Check.True(ThumbWhitelistRules.TsAllowed(1048576L), "long ts allowed");
+            Check.False(ThumbWhitelistRules.TsAllowed(999999L), "short ts has no thumb");
+            Check.True(ThumbWhitelistRules.Allows("bmp", 1L), "whitelisted image allowed");
+            Check.False(ThumbWhitelistRules.Allows("pdf", 99999999L), "office/pdf rejected");
+            Check.False(ThumbWhitelistRules.UsesThirdPartyDecoder(), "zero third party decoder");
+            Check.False(ThumbWhitelistRules.UsesNuGet(), "zero NuGet dependency");
+            Check.True(ThumbWhitelistRules.BlankRejected("  "), "blank rejected");
+            Check.True(ThumbWhitelistRules.BlankRejected(null), "null rejected");
+            return true;
+        }
+
+        private static bool TestThumbExif()
+        {
+            // thumb-exif：EXIF 八值方向、越界归一、旋转与翻转判据
+            Check.Equal(8, ExifOrientationRules.OrientationCount, "eight orientations");
+            Check.Equal(8, ExifOrientationRules.AllValues().Length, "eight values enumerated");
+            Check.True(ExifOrientationRules.IsKnown(1), "value 1 known");
+            Check.True(ExifOrientationRules.IsKnown(8), "value 8 known");
+            Check.False(ExifOrientationRules.IsKnown(0), "value 0 rejected");
+            Check.False(ExifOrientationRules.IsKnown(9), "value 9 rejected");
+            Check.Equal(1, ExifOrientationRules.Normalize(0), "low out of range falls back");
+            Check.Equal(1, ExifOrientationRules.Normalize(99), "high out of range falls back");
+            Check.Equal(0, ExifOrientationRules.QuarterTurns(1), "top-left no rotation");
+            Check.Equal(2, ExifOrientationRules.QuarterTurns(3), "bottom-right half turn");
+            Check.Equal(1, ExifOrientationRules.QuarterTurns(6), "right-top quarter turn");
+            Check.Equal(3, ExifOrientationRules.QuarterTurns(8), "left-bottom three quarters");
+            Check.True(ExifOrientationRules.FlipHorizontal(2), "top-right mirrored");
+            Check.True(ExifOrientationRules.FlipHorizontal(5), "left-top mirrored");
+            Check.False(ExifOrientationRules.FlipHorizontal(1), "identity not mirrored");
+            Check.True(ExifOrientationRules.IsIdentity(1), "identity detected");
+            Check.False(ExifOrientationRules.IsIdentity(6), "rotated not identity");
+            Check.False(ExifOrientationRules.ChangesCacheKey(), "orientation does not change key");
+            return true;
+        }
+
+        private static bool TestThumbQueue()
+        {
+            // thumb-queue：可见优先单线程、generation 迟到丢弃、JobState 状态机
+            Check.Equal(1, ThumbQueueRules.WorkerCount, "single worker");
+            Check.True(ThumbQueueRules.IsSingleThreaded(), "single threaded");
+            Check.True(ThumbQueueRules.UsesBackgroundWorker(), "background worker");
+            Check.True(ThumbQueueRules.VisibleFirst(true, false), "visible first");
+            Check.False(ThumbQueueRules.VisibleFirst(false, true), "offscreen not first");
+            Check.Equal(3, ThumbQueueRules.PriorityOf(true, true), "visible and selected highest");
+            Check.Equal(1, ThumbQueueRules.PriorityOf(false, false), "offscreen lowest");
+            Check.True(ThumbQueueRules.ComesFirst(true, 10, false, 1), "visible beats seq");
+            Check.True(ThumbQueueRules.ComesFirst(true, 2, true, 5), "same priority by seq");
+            Check.False(ThumbQueueRules.ComesFirst(true, 5, true, 2), "later seq loses");
+            Check.True(ThumbQueueRules.ShouldApplyResult(3, 3, false), "same generation applied");
+            Check.False(ThumbQueueRules.ShouldApplyResult(2, 3, false), "late result dropped");
+            Check.False(ThumbQueueRules.ShouldApplyResult(3, 3, true), "cancelled result dropped");
+            Check.True(ThumbQueueRules.LateResultDiscarded(2, 3), "late generation detected");
+            Check.True(ThumbQueueRules.CanTransition(JobState.Queued, JobState.Running), "queued to running");
+            Check.True(ThumbQueueRules.CanTransition(JobState.Running, JobState.Failed), "running to failed");
+            Check.False(ThumbQueueRules.CanTransition(JobState.Running, JobState.Queued), "no backward transition");
+            Check.True(ThumbQueueRules.FailedNoRetry(JobState.Failed, JobState.Queued), "failed no retry");
+            Check.True(ThumbQueueRules.UiThreadOnlyRenders(), "UI thread renders only");
+            Check.False(ThumbQueueRules.AllowsLongComCallOnUiThread(), "no long COM on UI thread");
+            return true;
+        }
+
+        private static bool TestThumbCache()
+        {
+            // thumb-cache：四段键、i|/v| 隔离、96 MB + 1500 条双闸、负缓存不重试
+            Check.Equal(4, ThumbCacheRules.KeyPartCount, "four key parts");
+            Check.Equal(4, ThumbCacheRules.KeyParts().Length, "key parts enumerated");
+            Check.Equal(1500, ThumbCacheRules.MaxEntries, "entry gate");
+            Check.Equal(96L * 1024L * 1024L, ThumbCacheRules.MaxBytes, "byte gate");
+            string imageKey = ThumbCacheRules.Key(ThumbCacheRules.ImagePrefix, @"d:\a.png", 96, 7L);
+            string videoKey = ThumbCacheRules.Key(ThumbCacheRules.VideoPrefix, @"d:\a.mp4", 96, 7L);
+            Check.True(ThumbCacheRules.IsTypeIsolated(imageKey), "image key isolated");
+            Check.True(ThumbCacheRules.IsTypeIsolated(videoKey), "video key isolated");
+            Check.False(ThumbCacheRules.IsTypeIsolated("x|unknown"), "unknown prefix rejected");
+            Check.True(ThumbCacheRules.AreIsolated(imageKey, videoKey), "image and video disjoint");
+            Check.False(ThumbCacheRules.AreIsolated(imageKey, imageKey), "same key not a pair");
+            Check.True(ThumbCacheRules.WithinEntryGate(1500), "at entry gate");
+            Check.False(ThumbCacheRules.WithinEntryGate(1501), "over entry gate");
+            Check.True(ThumbCacheRules.WithinByteGate(100663296L), "at byte gate");
+            Check.False(ThumbCacheRules.WithinByteGate(100663297L), "over byte gate");
+            Check.True(ThumbCacheRules.WithinBothGates(10, 1024L), "both gates green");
+            Check.True(ThumbCacheRules.NeedsEviction(1501, 0L), "entry gate triggers eviction");
+            Check.True(ThumbCacheRules.NeedsEviction(10, 100663297L), "byte gate triggers eviction");
+            Check.Equal(1, ThumbCacheRules.EvictCount(1501), "one surplus entry");
+            Check.Equal(0, ThumbCacheRules.EvictCount(1500), "no eviction at cap");
+            Check.Equal(ThumbFailure.Missing, ThumbCacheRules.FailureOf(true, false, false), "missing classification");
+            Check.Equal(ThumbFailure.NotImage, ThumbCacheRules.FailureOf(false, true, false), "not-image classification");
+            Check.Equal(ThumbFailure.DecodeFailed, ThumbCacheRules.FailureOf(false, false, true), "decode classification");
+            Check.True(ThumbCacheRules.IsNegativeCache(ThumbFailure.NotImage), "negative cache detected");
+            Check.False(ThumbCacheRules.RetryAllowed(ThumbFailure.DecodeFailed), "decode failure not retried");
+            Check.True(ThumbCacheRules.FallsBackToTypeIcon(ThumbFailure.Missing), "fallback to type icon");
+            Check.True(ThumbCacheRules.NegativeCacheNeverRetries(ThumbFailure.Missing), "negative cache never retries");
+            return true;
+        }
+
+        private static bool TestThumbVideo()
+        {
+            // thumb-video：15 容器、系统图像工厂、独立 worker + 8 秒看门狗、负缓存
+            Check.Equal(15, VideoThumbRules.ContainerCount, "fifteen containers");
+            Check.Equal(15, VideoThumbRules.SupportedContainers().Length, "container list length");
+            Check.True(VideoThumbRules.IsSupported(".MP4"), "mp4 supported");
+            Check.True(VideoThumbRules.IsSupported("ts"), "ts supported with size gate");
+            Check.False(VideoThumbRules.IsSupported("pdf"), "pdf not a container");
+            Check.True(VideoThumbRules.UsesSystemImageFactory(), "system image factory");
+            Check.True(VideoThumbRules.UsesIndependentWorker(), "independent worker");
+            Check.True(VideoThumbRules.HasWatchdog(), "watchdog present");
+            Check.Equal(8, VideoThumbRules.TimeoutSeconds, "eight second timeout");
+            Check.False(VideoThumbRules.TimedOut(7), "below timeout");
+            Check.True(VideoThumbRules.TimedOut(8), "at timeout");
+            Check.False(VideoThumbRules.TsAllowed(999999L), "short ts rejected");
+            Check.True(VideoThumbRules.TsAllowed(1048576L), "long ts accepted");
+            Check.False(VideoThumbRules.Allows("ts", 999999L), "short ts no thumb");
+            Check.True(VideoThumbRules.Allows("mp4", 1L), "mp4 no size gate");
+            Check.Equal(ThumbFailure.NotImage, VideoThumbRules.Classify(false, true), "not-image classified");
+            Check.True(VideoThumbRules.NegativeCacheNoRetry(ThumbFailure.Missing), "missing not retried");
+            Check.True(VideoThumbRules.WritesSystemCache(), "system thumbcache write declared");
+            Check.False(VideoThumbRules.UsesThirdPartyDecoder(), "no third party decoder");
+            return true;
+        }
+
+        private static bool TestThumbToggle()
+        {
+            // thumb-toggle：开关切换不重枚举、保持行集 / 视口 / 选中集
+            Check.True(ThumbToggleRules.NoReenumOnThumbToggle(), "no reenumeration");
+            Check.False(ThumbToggleRules.ReenumeratesOn(DisplayToggle.Thumbnail), "thumbnail off enum path");
+            Check.True(ThumbToggleRules.ReenumeratesOn(DisplayToggle.Hidden), "hidden still reenumerates");
+            ToggleState off = ToggleRules.Default();
+            Check.False(ThumbToggleRules.Enabled(off), "default off");
+            ToggleState on = ThumbToggleRules.Flip(off);
+            Check.True(ThumbToggleRules.Enabled(on), "flipped on");
+            Check.False(ThumbToggleRules.NeedsThumbForView(off, ViewMode.ExtraLarge), "off needs no thumb");
+            Check.True(ThumbToggleRules.NeedsThumbForView(on, ViewMode.ExtraLarge), "on in jumbo needs thumb");
+            Check.False(ThumbToggleRules.NeedsThumbForView(on, ViewMode.Details), "details never needs thumb");
+            Check.True(ThumbToggleRules.KeepsViewport(7, 7), "viewport kept");
+            Check.False(ThumbToggleRules.KeepsViewport(7, 0), "viewport jump rejected");
+            Check.True(ThumbToggleRules.KeepsRowSet(100, 100), "row set kept");
+            Check.False(ThumbToggleRules.KeepsRowSet(100, 99), "row set change rejected");
+            Check.True(ThumbToggleRules.KeepsSelection(3, 3), "selection kept");
+            Check.True(ThumbToggleRules.PersistsToSession(), "toggle persisted");
+            Check.True(ThumbToggleRules.ReusesCacheWhenReenabled(), "cache reused");
+            Check.False(ThumbToggleRules.QueuesNewJobOnToggle(), "no new job on toggle");
+            return true;
+        }
+
+        private static bool TestThumbNoWrite()
+        {
+            // thumb-nowrite：唯一显式写入例外、三段取证、动机相同才允许写入
+            Check.Equal(1, ThumbWriteRules.ExceptionCount, "exactly one write exception");
+            Check.True(ThumbWriteRules.IsSoleException("thumbcache"), "thumbcache is sole exception");
+            Check.False(ThumbWriteRules.IsSoleException("settings"), "settings not an exception");
+            Check.Equal(3, ThumbWriteRules.EvidenceZoneCount, "three evidence zones");
+            Check.Equal(3, ThumbWriteRules.EvidenceZones().Length, "zones enumerated");
+            Check.True(ThumbWriteRules.NeedsThreeZoneEvidence(), "three-zone evidence required");
+            Check.True(ThumbWriteRules.WriteAllowed(WriteZone.SystemCache, true), "cache write with same motive");
+            Check.False(ThumbWriteRules.WriteAllowed(WriteZone.SystemCache, false), "motive differs rejected");
+            Check.False(ThumbWriteRules.WriteAllowed(WriteZone.Settings, true), "settings write rejected");
+            Check.False(ThumbWriteRules.WriteAllowed(WriteZone.ApplicationFolder, true), "app folder write rejected");
+            Check.True(ThumbWriteRules.ZeroSettingsWrites(), "zero settings writes");
+            Check.True(ThumbWriteRules.ZeroAppDirectoryWrites(), "zero app directory writes");
+            Check.True(ThumbWriteRules.ZeroWritesWithoutSameMotive(), "no write without same motive");
+            Check.True(ThumbWriteRules.NoPersistWritesNothing(), "no-persist writes nothing");
+            Check.True(ThumbWriteRules.ConfigRootOnlyData(), "config root only data");
+            Check.False(ThumbWriteRules.SilentFallbackToUserProfile(), "no silent profile fallback");
             return true;
         }
     }

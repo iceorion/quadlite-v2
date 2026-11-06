@@ -9,7 +9,8 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 两类 B2 编排 / 两类 Fs 适配器的负向对照；B3 起增加 check-shell-specs 正向 +
 六类外壳静态契约负向对照；B4 起增加 check-list-specs 正向 +
 六类列表视图静态契约负向对照；B5 起增加 check-menu-specs 正向 +
-七类系统原生菜单静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+七类系统原生菜单静态契约负向对照；B6 起增加 check-icon-specs 正向 +
+七类图标缩略图静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 exe 形态 --selftest 随 B7 引入。
 """
 import shutil
@@ -328,6 +329,66 @@ def mutate_cs6_menu(dst):
                  encoding="utf-8")
 
 
+# ---- B6 负向对照 ----
+def negative_icon_specs(label, mutate):
+    """临时副本里破坏一条图标缩略图静态契约，check-icon-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_icon_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-icon-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_cache_rules(dst):
+    (dst / "src" / "QuadLite.Core" / "ThumbCacheRules.cs").unlink()
+
+
+def mutate_drop_b6_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("thumb-nowrite", TestThumbNoWrite);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_cache_gate_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "ThumbCacheRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("MaxEntries = 1500", "MaxEntries = 1")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_write_exception_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "ThumbWriteRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("ExceptionCount = 1", "ExceptionCount = 2")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_delete_thumb_state(dst):
+    (dst / "src" / "QuadLite.App" / "ThumbState.cs").unlink()
+
+
+def mutate_thumb_app_io(dst):
+    p = dst / "src" / "QuadLite.App" / "ThumbState.cs"
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def mutate_cs6_icon(dst):
+    p = dst / "src" / "QuadLite.App" / "ThumbCommands.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class Bad4 { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -346,7 +407,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5)")
+    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5 + B6)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -355,6 +416,7 @@ def main():
     expect_green("check-shell-specs", script("check_shell_specs.py"))
     expect_green("check-list-specs", script("check_list_specs.py"))
     expect_green("check-menu-specs", script("check_menu_specs.py"))
+    expect_green("check-icon-specs", script("check_icon_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -402,6 +464,13 @@ def main():
     negative_menu_specs("missing-menu-state", mutate_delete_menu_state)
     negative_menu_specs("menu-app-io", mutate_menu_app_io)
     negative_menu_specs("cs6-syntax", mutate_cs6_menu)
+    negative_icon_specs("missing-cache-rules", mutate_delete_cache_rules)
+    negative_icon_specs("missing-b6-group", mutate_drop_b6_group)
+    negative_icon_specs("cache-gate-drift", mutate_cache_gate_drift)
+    negative_icon_specs("write-exception-drift", mutate_write_exception_drift)
+    negative_icon_specs("missing-thumb-state", mutate_delete_thumb_state)
+    negative_icon_specs("thumb-app-io", mutate_thumb_app_io)
+    negative_icon_specs("cs6-syntax", mutate_cs6_icon)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

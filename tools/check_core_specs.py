@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B1/B2/B3/B4/B5 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单）与 C# 零依赖 runner 的结构核对。
+B1/B2/B3/B4/B5/B6 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单 + 图标缩略图）与 C# 零依赖 runner 的结构核对。
 
 零第三方依赖。退出码 = 红条数。
   python tools/check_core_specs.py                 # 扫仓库
@@ -76,6 +76,15 @@ CORE_TYPES = {
     "MenuSentinelRules.cs": r"\bclass\s+MenuSentinelRules\b",
     "MenuReleaseRules.cs": r"\bclass\s+MenuReleaseRules\b",
     "MenuProbeRules.cs": r"\bclass\s+MenuProbeRules\b",
+    # B6：图标 / 缩略图 / 缓存规则层（全部零 I/O）
+    "IconChannelRules.cs": r"\bclass\s+IconChannelRules\b",
+    "ThumbWhitelistRules.cs": r"\bclass\s+ThumbWhitelistRules\b",
+    "ExifOrientationRules.cs": r"\bclass\s+ExifOrientationRules\b",
+    "ThumbQueueRules.cs": r"\bclass\s+ThumbQueueRules\b",
+    "ThumbCacheRules.cs": r"\bclass\s+ThumbCacheRules\b",
+    "VideoThumbRules.cs": r"\bclass\s+VideoThumbRules\b",
+    "ThumbToggleRules.cs": r"\bclass\s+ThumbToggleRules\b",
+    "ThumbWriteRules.cs": r"\bclass\s+ThumbWriteRules\b",
 }
 
 EXPECTED_GROUPS = [
@@ -92,6 +101,9 @@ EXPECTED_GROUPS = [
     "menu-native-default", "menu-no-verb-scan", "menu-id-range",
     "menu-own-id-segment", "menu-no-fusion", "menu-msg-forward",
     "menu-target-snapshot", "menu-sentinel", "menu-single-file", "menu-release",
+    # B6 新增门卡组（附录 C 的 icon-* / thumb-* / thumb-nowrite 三个门卡组展开）
+    "icon-*", "thumb-whitelist", "thumb-exif", "thumb-queue",
+    "thumb-cache", "thumb-video", "thumb-toggle", "thumb-nowrite",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -151,6 +163,12 @@ ENUM_EXPECT = {
     "ProbeBehavior": 4,
     "MenuCloseKind": 4,
     "SentinelAction": 4,
+    # B6 新增枚举（Core 层）
+    "IconSize": 4,
+    "ExifOrientation": 8,
+    "CacheKeyPart": 4,
+    "ThumbFailure": 4,
+    "WriteZone": 3,
 }
 
 

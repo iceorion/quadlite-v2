@@ -40,16 +40,18 @@ REQUIRED = [
     "tools/check_boundaries.py", "tools/check_trace.py", "tools/run_tests.py",
     "tools/check_core_specs.py", "tools/check_fs_specs.py", "tools/check_shell_specs.py",
     "tools/check_list_specs.py", "tools/check_menu_specs.py",
+    "tools/check_icon_specs.py",
     "src/QuadLite.Core/PathKey.cs", "src/QuadLite.Core/OperationCoordinator.cs",
     "src/QuadLite.Core/LayoutMath.cs", "src/QuadLite.Core/FilterRules.cs",
     "src/QuadLite.Core/MenuHostRules.cs",
+    "src/QuadLite.Core/IconChannelRules.cs",
     "src/QuadLite.App/ShellState.cs", "src/QuadLite.App/ListViewState.cs",
-    "src/QuadLite.App/MenuState.cs",
+    "src/QuadLite.App/MenuState.cs", "src/QuadLite.App/ThumbState.cs",
     "src/QuadLite.Fs/ShellFileOperator.cs",
     "tests/QuadLite.Tests/Program.cs",
     ".github/workflows/ci.yml", "docs/adr/ADR-v2-001.md", "docs/adr/ADR-v2-002.md",
     "docs/adr/ADR-v2-004.md", "docs/adr/ADR-v2-005.md", "docs/adr/ADR-v2-006.md",
-    "docs/adr/ADR-v2-007.md",
+    "docs/adr/ADR-v2-007.md", "docs/adr/ADR-v2-008.md",
     "docs/negative-controls.md", "docs/run-ledger.md",
 ]
 
@@ -183,11 +185,11 @@ if verb_hits:
 else:
     ok("产品程序集 verb 查询命中 0 次（%d 个 .cs 实测，§7.1 menu-no-verb-scan）" %
        len(src_cs_files))
-na("真实 WPF 窗口 / XAML / 消息循环、真实列表控件与拖放、系统原生菜单 COM 宿主、MSBuild 应用构建、单文件出包、exe 形态 --selftest：未实跑，标「未验证」（见 ADR-v2-002 / ADR-v2-004 / ADR-v2-005 / ADR-v2-006 / ADR-v2-007）")
+na("真实 WPF 窗口 / XAML / 消息循环、真实列表控件与拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、MSBuild 应用构建、单文件出包、exe 形态 --selftest：未实跑，标「未验证」（见 ADR-v2-002 / ADR-v2-004 / ADR-v2-005 / ADR-v2-006 / ADR-v2-007 / ADR-v2-008）")
 na("运行期写入三段取证、高 DPI 四档、同手感：人工 / 发布线项（未验证）")
 
 src_cs = [p for p in files if p.suffix == ".cs" and "src" in p.parts]
-print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3/B4/B5 状态内核；真实 shell 调用点、NativeMenuHost 与 WPF 窗口未接入）" % len(src_cs))
+print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3/B4/B5/B6 规则与状态内核；真实 shell 调用点、NativeMenuHost、图标缩略图渲染与 WPF 窗口未接入）" % len(src_cs))
 print("\n文件数=%d，总字节=%d" % (len(files), sum(p.stat().st_size for p in files)))
 if errors:
     print("verdict: RED (%d)" % len(errors))

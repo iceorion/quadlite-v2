@@ -117,7 +117,7 @@ B5 的 7 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
-| 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 首次实跑待回填（本机未验证） |
+| 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 实测通过（run `42232312609`，本机未验证） |
 | 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（62 个 .cs，命中 0 次；负向对照注入后必红） |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
@@ -148,7 +148,7 @@ B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Cor
 
 B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 11 个 Core 与 2 个 App 文件，无需新增编译步骤）：`csharp-runner` 扩到 33 组（含 6 组 B4 列表），`csharp-app-compile` 编译 4 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集。真实 WPF 列表控件 / 虚拟化面板 / 拖放不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42224901915`（head `8ed8b5b`），十一个门卡 / 编译步骤逐项 `success`，其中 `check-list-specs` `success`、`csharp-runner` 退出码 0 ⇒ 33 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
-B5 起 CI 再增加 `check-menu-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core、2 个 App 与 1 个 Tests 文件，无需新增编译步骤）：`csharp-runner` 扩到 43 组（含 10 组 B5 菜单），`csharp-app-compile` 编译 6 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；§10「产品程序集 verb 查询 0 次」由 `check-menu-specs` 与 `check-open-source` 双门卡本机实测。真实原生菜单 COM 宿主 / 崩溃哨兵磁盘标记 / 自绘兜底 UI 不在 CI 内，相关项维持「未验证」。**CI 首次实跑待回填**，逐批结论见 `docs/run-ledger.md`。
+B5 起 CI 再增加 `check-menu-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core、2 个 App 与 1 个 Tests 文件，无需新增编译步骤）：`csharp-runner` 扩到 43 组（含 10 组 B5 菜单），`csharp-app-compile` 编译 6 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；§10「产品程序集 verb 查询 0 次」由 `check-menu-specs` 与 `check-open-source` 双门卡本机实测。真实原生菜单 COM 宿主 / 崩溃哨兵磁盘标记 / 自绘兜底 UI 不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42232312609`（head `aa63769`），十二个门卡 / 编译步骤逐项 `success`，其中 `check-menu-specs` `success`、`csharp-runner` 退出码 0 ⇒ 43 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

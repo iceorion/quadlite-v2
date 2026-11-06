@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B1/B2 静态契约门卡：Core 纯逻辑层（L0 + 编排）与 C# 零依赖 runner 的结构核对。
+B1/B2/B3/B4/B5 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单）与 C# 零依赖 runner 的结构核对。
 
 零第三方依赖。退出码 = 红条数。
   python tools/check_core_specs.py                 # 扫仓库
@@ -67,6 +67,15 @@ CORE_TYPES = {
     "HitTestRules.cs": r"\bclass\s+HitTestRules\b",
     "StatusRules.cs": r"\bclass\s+StatusRules\b",
     "KeyMap.cs": r"\bclass\s+KeyMap\b",
+    # B5：系统原生右键菜单规则层（全部零 I/O）
+    "MenuHostRules.cs": r"\bclass\s+MenuHostRules\b",
+    "MenuInvokeRules.cs": r"\bclass\s+MenuInvokeRules\b",
+    "MenuFusionRules.cs": r"\bclass\s+MenuFusionRules\b",
+    "MenuMessageRules.cs": r"\bclass\s+MenuMessageRules\b",
+    "MenuTargetSnapshotRules.cs": r"\bclass\s+MenuTargetSnapshotRules\b",
+    "MenuSentinelRules.cs": r"\bclass\s+MenuSentinelRules\b",
+    "MenuReleaseRules.cs": r"\bclass\s+MenuReleaseRules\b",
+    "MenuProbeRules.cs": r"\bclass\s+MenuProbeRules\b",
 }
 
 EXPECTED_GROUPS = [
@@ -79,6 +88,10 @@ EXPECTED_GROUPS = [
     "layout-*", "split-*", "tab-*", "nav-*", "bookmark-*", "session-*",
     # B4 新增门卡组
     "group-*", "filter-*", "toggle-*", "hit-*", "status-*", "keys-*",
+    # B5 新增门卡组（§7.1 menu-* 十条）
+    "menu-native-default", "menu-no-verb-scan", "menu-id-range",
+    "menu-own-id-segment", "menu-no-fusion", "menu-msg-forward",
+    "menu-target-snapshot", "menu-sentinel", "menu-single-file", "menu-release",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -131,6 +144,13 @@ ENUM_EXPECT = {
     "KeyAction": 13,
     "KeyScope": 3,
     "BusyBehavior": 3,
+    # B5 新增枚举（Core 层）
+    "MenuHostMode": 2,
+    "MenuDispatchKind": 3,
+    "MenuMessage": 5,
+    "ProbeBehavior": 4,
+    "MenuCloseKind": 4,
+    "SentinelAction": 4,
 }
 
 

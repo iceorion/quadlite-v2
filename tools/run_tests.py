@@ -8,7 +8,8 @@
 B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-specs 正向 +
 两类 B2 编排 / 两类 Fs 适配器的负向对照；B3 起增加 check-shell-specs 正向 +
 六类外壳静态契约负向对照；B4 起增加 check-list-specs 正向 +
-六类列表视图静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+六类列表视图静态契约负向对照；B5 起增加 check-menu-specs 正向 +
+七类系统原生菜单静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 exe 形态 --selftest 随 B7 引入。
 """
 import shutil
@@ -266,6 +267,67 @@ def mutate_cs6_list(dst):
                  encoding="utf-8")
 
 
+# ---- B5 负向对照 ----
+def negative_menu_specs(label, mutate):
+    """临时副本里破坏一条菜单静态契约，check-menu-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_menu_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-menu-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_fusion_rules(dst):
+    (dst / "src" / "QuadLite.Core" / "MenuFusionRules.cs").unlink()
+
+
+def mutate_drop_menu_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("menu-id-range", TestMenuIdRange);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_verb_scan_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "MenuHostRules.cs"
+    text = p.read_text(encoding="utf-8")
+    old = "public static int VerbScanCount()\n        {\n            return 0;\n        }"
+    new = "public static int VerbScanCount()\n        {\n            return 1;\n        }"
+    broken = text.replace(old, new)
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_inject_product_verb_scan(dst):
+    p = dst / "src" / "QuadLite.Core" / "MenuHostRules.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: GetCommandString must never appear in product code\n",
+                 encoding="utf-8")
+
+
+def mutate_delete_menu_state(dst):
+    (dst / "src" / "QuadLite.App" / "MenuState.cs").unlink()
+
+
+def mutate_menu_app_io(dst):
+    p = dst / "src" / "QuadLite.App" / "MenuState.cs"
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def mutate_cs6_menu(dst):
+    p = dst / "src" / "QuadLite.App" / "MenuCommands.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class Bad3 { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -284,7 +346,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4)")
+    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -292,6 +354,7 @@ def main():
     expect_green("check-fs-specs", script("check_fs_specs.py"))
     expect_green("check-shell-specs", script("check_shell_specs.py"))
     expect_green("check-list-specs", script("check_list_specs.py"))
+    expect_green("check-menu-specs", script("check_menu_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -332,6 +395,13 @@ def main():
     negative_list_specs("missing-list-state", mutate_delete_list_state)
     negative_list_specs("list-app-io", mutate_list_app_io)
     negative_list_specs("cs6-syntax", mutate_cs6_list)
+    negative_menu_specs("missing-fusion", mutate_delete_fusion_rules)
+    negative_menu_specs("missing-b5-group", mutate_drop_menu_group)
+    negative_menu_specs("verb-scan-drift", mutate_verb_scan_drift)
+    negative_menu_specs("product-verb-scan", mutate_inject_product_verb_scan)
+    negative_menu_specs("missing-menu-state", mutate_delete_menu_state)
+    negative_menu_specs("menu-app-io", mutate_menu_app_io)
+    negative_menu_specs("cs6-syntax", mutate_cs6_menu)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

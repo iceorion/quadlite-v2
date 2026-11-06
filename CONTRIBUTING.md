@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-**B0 已完成**：工程骨架、检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。**B1 已完成**：`src/QuadLite.Core/` 13 个 L0 纯函数类型与 `tests/QuadLite.Tests/` 的 C# 零依赖 runner。**B2 已完成**：Core 新增 10 个编排 / 端口类型、Fs 新增 5 个适配器、C# runner 扩到 21 组。**B3 已完成**：Core 新增 9 个布局 / 导航 / 会话类型、`src/QuadLite.App/` 新增 2 个外壳状态类型、C# runner 扩到 27 组。**B4 已完成**：Core 新增 11 个列表视图规则类型、App 新增 2 个列表视图状态类型、C# runner 扩到 33 组；真实 WPF 窗口 / XAML / 消息循环 / 列表控件 / 拖放仍未接入。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
+**B0 已完成**：工程骨架、检查脚本、夹具、CI 与证据闭环（设计决策记录 / 负向对照登记 / 运行账本）均已落地，根目录三个文档的构建与验收章节已补全。**B1 已完成**：`src/QuadLite.Core/` 13 个 L0 纯函数类型与 `tests/QuadLite.Tests/` 的 C# 零依赖 runner。**B2 已完成**：Core 新增 10 个编排 / 端口类型、Fs 新增 5 个适配器、C# runner 扩到 21 组。**B3 已完成**：Core 新增 9 个布局 / 导航 / 会话类型、`src/QuadLite.App/` 新增 2 个外壳状态类型、C# runner 扩到 27 组。**B4 已完成**：Core 新增 11 个列表视图规则类型、App 新增 2 个列表视图状态类型、C# runner 扩到 33 组。**B5 已完成**：Core 新增 8 个菜单规则类型、App 新增 2 个菜单状态类型、tests 新增 `FakeShellExtension` 四态替身、C# runner 扩到 43 组；真实 WPF 窗口 / XAML / 消息循环 / 列表控件 / 拖放与系统原生菜单 COM 宿主仍未接入。`LICENSE` 与 `CODE_OF_CONDUCT.md` 已定稿，不重复创建。
 
-偏差与未验证项见 `docs/adr/ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）、`ADR-v2-004.md`（B2）、`ADR-v2-005.md`（B3）、`ADR-v2-006.md`（B4）：本机不执行 C# 编译器，算法门卡由 CI 远端编译实跑；真实 `IFileOperation` 搬运、系统剪贴板互通、watcher 行为、冲突 / 进度 UI、真实 WPF 窗口与列表控件均未实现或未验证；应用构建与出包标「未验证」，不冒充通过。布局方案仍在讨论中、未拍板，B3 按规格 v1.2 四档实现，B4 与布局无关，规格未改。
+偏差与未验证项见 `docs/adr/ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）、`ADR-v2-004.md`（B2）、`ADR-v2-005.md`（B3）、`ADR-v2-006.md`（B4）、`ADR-v2-007.md`（B5）：本机不执行 C# 编译器，算法门卡由 CI 远端编译实跑；真实 `IFileOperation` 搬运、系统剪贴板互通、watcher 行为、冲突 / 进度 UI、真实 WPF 窗口与列表控件、系统原生菜单 COM 宿主均未实现或未验证；应用构建与出包标「未验证」，不冒充通过。布局方案仍在讨论中、未拍板，B3 按规格 v1.2 四档实现，B4 / B5 与布局无关，规格未改。
 
 在任何批次开工前，请先读 `design-v2.md`：它是需求、架构、接口与验收判据的唯一权威文档。
 
@@ -27,18 +27,19 @@
 |---|---|---|
 | `python tools/check_trace.py` | 需求追踪矩阵（§2.1 / §7.1 / §8.1 / 附录 C 四方一致） | `verdict: GREEN`；缺门卡、缺批次或孤立门卡即 `exit 1` |
 | `python tools/check_boundaries.py` | §4.2 的 B-01..B-07 + 六条不变量可静态项 | `verdict: GREEN`；违反即 `exit 1` |
-| `python tools/check_core_specs.py` | B1/B2/B3/B4 静态契约：Core 类型齐备（43 个）/ C# 5 语法子集 / 枚举完备性（36 个）/ 33 组门卡注册 / Core 零 I/O | `verdict: GREEN`；任一缺失即 `exit 1` |
+| `python tools/check_core_specs.py` | B1/B2/B3/B4/B5 静态契约：Core 类型齐备（51 个）/ C# 5 语法子集 / 枚举完备性（42 个）/ 43 组门卡注册 / Core 零 I/O | `verdict: GREEN`；任一缺失即 `exit 1` |
 | `python tools/check_fs_specs.py` | B2 静态契约：Fs 适配器齐备 / 端口绑定 / 禁止手写 COM vtable / shell 调用点隔离 / C# 5 语法 | `verdict: GREEN`；任一违反即 `exit 1` |
 | `python tools/check_shell_specs.py` | B3 静态契约：外壳类型齐备 / App 骨架 / 门卡组注册 / 规格与实现一致 / 四档与 3 窗格 / 折叠吸附 / `future-version` / App 零 I/O / C# 5 语法 | `verdict: GREEN`；任一违反即 `exit 1` |
 | `python tools/check_list_specs.py` | B4 静态契约：列表规则类型齐备 / App 状态内核 / 门卡组注册 / 规格关键常量与不变量（4096 / 四列 / 五档 / 13 键）/ 规格与实现一致 / App 零 I/O / C# 5 语法 | `verdict: GREEN`；任一违反即 `exit 1` |
-| `python tools/run_tests.py` | 零依赖 runner：39 组（正样本 + 31 条负向对照 + 合规扫描） | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
+| `python tools/check_menu_specs.py` | B5 静态契约：菜单规则类型齐备 / App 状态内核 / 门卡组注册 / 22 项规格常量与不变量 / 产品程序集 verb 查询 0 次 / App 零 I/O / 假扩展四态 / 规格与实现一致 / C# 5 语法 | `verdict: GREEN`；任一违反即 `exit 1` |
+| `python tools/run_tests.py` | 零依赖 runner：47 组（正样本 + 38 条负向对照 + 合规扫描） | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
 | `python tools/check_open_source.py` | §10 开源合规全文扫描 | `verdict: GREEN`；命中即打回 |
-| C# runner（CI 编译） | 33 组门卡（14 组 L0 + 7 组 B2 编排 + 6 组 B3 外壳 + 6 组 B4 列表），系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」** |
+| C# runner（CI 编译） | 43 组门卡（14 组 L0 + 7 组 B2 编排 + 6 组 B3 外壳 + 6 组 B4 列表 + 10 组 B5 菜单），系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」** |
 | Fs 库编译（CI） | Core + Fs 编成 library，不运行 | 编译成功即过；**运行期行为未验证** |
-| App 库编译（CI） | Core + App 外壳与列表视图状态内核（4 个 .cs）编成 library，不引用呈现框架程序集、不运行 | 编译成功即过；**真实 WPF 窗口 / XAML / 消息循环 / 列表控件未构建** |
+| App 库编译（CI） | Core + App 外壳 / 列表视图 / 菜单状态内核（6 个 .cs）编成 library，不引用呈现框架程序集、不运行 | 编译成功即过；**真实 WPF 窗口 / XAML / 消息循环 / 列表控件 / 原生菜单 COM 宿主未构建** |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 八道 Python 门卡 + C# runner 编译运行 + Fs / App 库编译 | B0（run `42013589562` / `96a5fa4`）、B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`，八步全 `success`）、B3（run `42040769639` / `378432a`，十步全 `success`）、B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）首次实跑均已通过，逐批结论见 `docs/run-ledger.md`；CI 不含真实 WPF 窗口与列表控件构建、出包，那几项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 九道 Python 门卡 + C# runner 编译运行 + Fs / App 库编译 | B0（run `42013589562` / `96a5fa4`）、B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`，八步全 `success`）、B3（run `42040769639` / `378432a`，十步全 `success`）、B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）首次实跑均已通过，B5 CI 首次实跑待回填，逐批结论见 `docs/run-ledger.md`；CI 不含真实 WPF 窗口、列表控件与原生菜单 COM 宿主构建、出包，那几项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 
@@ -47,10 +48,10 @@
 ```
 Directory.Build.props     共享构建属性（net48 / C# 5 / FrameworkPathOverride）
 build.ps1                 构建与出包入口
-src/QuadLite.Core/        L0 领域层 + B2 编排层 + B3 外壳内核 + B4 列表规则层（43 个纯函数 / 端口类型，零 I/O）
+src/QuadLite.Core/        L0 领域层 + B2 编排层 + B3 外壳内核 + B4 列表规则层 + B5 菜单规则层（51 个纯函数 / 端口类型，零 I/O）
 src/QuadLite.Fs/          L3 适配器层（B2 已落地 5 个实现，真实 shell 调用点待接入）
-src/QuadLite.App/         L4 状态内核（B3 外壳 2 个 + B4 列表视图 2 个纯逻辑类型；窗口 / XAML / 列表控件未接入）
-tests/QuadLite.Tests/     C# 零依赖 runner（33 组门卡 + Fake 端口）
+src/QuadLite.App/         L4 状态内核（B3 外壳 2 个 + B4 列表视图 2 个 + B5 菜单 2 个纯逻辑类型；窗口 / XAML / 列表控件 / COM 宿主未接入）
+tests/QuadLite.Tests/     C# 零依赖 runner（43 组门卡 + Fake 端口 + FakeShellExtension）
 tools/                    检查链、夹具、合规扫描、静态契约核对
 .github/workflows/        CI 闸门
 docs/adr/                 设计决策记录
@@ -77,7 +78,7 @@ docs/run-ledger.md        运行账本
 
 ## 设计决策记录
 
-`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。已生效：`ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）、`ADR-v2-004.md`（B2）、`ADR-v2-005.md`（B3）、`ADR-v2-006.md`（B4）。`ADR-v2-003` 编号曾用于一次被撤回的布局改版，跳过不再复用。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`；布局方案拍板时还须同步 `check_shell_specs.py` 与 `check_list_specs.py` 的「规格与实现一致」门卡。
+`docs/adr/`，编号 `ADR-v2-0xx`，每条含「决策 / 理由 / 判据 / 负向对照 / 状态」，并标清「沿用 / 修订 / 作废」。已生效：`ADR-v2-001.md`（B0）、`ADR-v2-002.md`（B1）、`ADR-v2-004.md`（B2）、`ADR-v2-005.md`（B3）、`ADR-v2-006.md`（B4）、`ADR-v2-007.md`（B5）。`ADR-v2-003` 编号曾用于一次被撤回的布局改版，跳过不再复用。新增需求必须同步更新 `design-v2.md` 附录 C 并通过 `check-trace`；布局方案拍板时还须同步 `check_shell_specs.py` 与 `check_list_specs.py` 的「规格与实现一致」门卡。
 
 ## 提交前开源审查
 

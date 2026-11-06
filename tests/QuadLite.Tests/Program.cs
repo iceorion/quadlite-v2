@@ -47,8 +47,18 @@ namespace QuadLite.Tests
             Run("hit-*", TestHit);
             Run("status-*", TestStatus);
             Run("keys-*", TestKeys);
+            Run("menu-native-default", TestMenuNativeDefault);
+            Run("menu-no-verb-scan", TestMenuNoVerbScan);
+            Run("menu-id-range", TestMenuIdRange);
+            Run("menu-own-id-segment", TestMenuOwnIdSegment);
+            Run("menu-no-fusion", TestMenuNoFusion);
+            Run("menu-msg-forward", TestMenuMsgForward);
+            Run("menu-target-snapshot", TestMenuTargetSnapshot);
+            Run("menu-sentinel", TestMenuSentinel);
+            Run("menu-single-file", TestMenuSingleFile);
+            Run("menu-release", TestMenuRelease);
 
-            Console.WriteLine("groups=33, failed=" + failures.ToString());
+            Console.WriteLine("groups=43, failed=" + failures.ToString());
             if (failures == 0)
             {
                 Console.WriteLine("verdict: GREEN");
@@ -1186,6 +1196,271 @@ namespace QuadLite.Tests
             Check.Equal(5, KeyMap.EnabledWhileBusyCount(), "five read-only actions stay enabled");
             Check.True(KeyMap.IsReadOnlyAction(KeyAction.SelectAll), "select all is read-only");
             Check.False(KeyMap.IsReadOnlyAction(KeyAction.Delete), "delete is not read-only");
+            return true;
+        }
+
+        // ---- B5 系统原生右键菜单：§7.1 menu-* 十条门卡 ----
+
+        private static bool TestMenuNativeDefault()
+        {
+            // menu-native-default：默认路径系统原生；自绘层只在哨兵降级后兜底
+            Check.Equal(MenuHostMode.Native, MenuHostRules.DefaultMode(), "native is default");
+            Check.True(MenuHostRules.FallbackIsDegradeOnly(MenuHostMode.Native, false), "native always valid");
+            Check.True(MenuHostRules.FallbackIsDegradeOnly(MenuHostMode.Fallback, true), "fallback allowed after degrade");
+            Check.False(MenuHostRules.FallbackIsDegradeOnly(MenuHostMode.Fallback, false), "fallback not a default");
+            Check.True(MenuHostRules.CanRestoreNative(), "one-click restore exists");
+            Check.Equal(4, MenuHostRules.StandardStepCount, "four standard steps");
+            Check.True(MenuHostRules.UsesStandardSequence(MenuHostRules.Steps()), "standard four-step sequence");
+            Check.False(MenuHostRules.UsesStandardSequence(new string[] { "A", "B", "C", "D" }), "unknown sequence rejected");
+            Check.False(MenuHostRules.UsesStandardSequence(null), "null sequence rejected");
+            Check.Equal(0, MenuHostRules.VerbScanCount(), "zero verb queries");
+            Check.Equal(0, MenuHostRules.DeleteItemCount(), "zero item deletion");
+            Check.Equal(0, MenuHostRules.MenuTreeRewriteCount(), "zero menu-tree rewrite");
+            Check.True(MenuHostRules.ReadsItemTextViaPlainWin32(), "item text via plain Win32 only");
+            Check.True(MenuHostRules.ForbidsLazySubmenu(), "lazy submenu forbidden");
+            Check.True(MenuHostRules.ForbidsFixedTimeout(), "fixed timeout forbidden");
+            Check.True(MenuHostRules.ForbidsStaWorkerPool(), "STA worker pool forbidden");
+            Check.True(MenuHostRules.ForbidsNegativeCache(), "negative cache forbidden");
+            Check.True(MenuHostRules.ForbidsMenuPointerCache(), "menu pointer cache forbidden");
+            Check.True(MenuHostRules.UsesMatureComBindingOnly(), "mature COM binding only");
+            return true;
+        }
+
+        private static bool TestMenuNoVerbScan()
+        {
+            // menu-no-verb-scan：产品路径 0 次命令字符串查询；诊断路径四项前置条件
+            Check.Equal(0, MenuHostRules.VerbScanCount(), "product path never queries verbs");
+            Check.True(MenuInvokeRules.DiagnosticReadAllowed(true, true, true, false), "diagnostic allowed with all guards");
+            Check.False(MenuInvokeRules.DiagnosticReadAllowed(false, true, true, false), "same process rejected");
+            Check.False(MenuInvokeRules.DiagnosticReadAllowed(true, false, true, false), "unchecked id rejected");
+            Check.False(MenuInvokeRules.DiagnosticReadAllowed(true, true, false, false), "no timeout rejected");
+            Check.False(MenuInvokeRules.DiagnosticReadAllowed(true, true, true, true), "release package rejected");
+            Check.True(MenuInvokeRules.UsesMatureComBinding(), "mature binding only");
+            Check.False(MenuInvokeRules.DeclaresRawVtable(), "no hand-written vtable");
+            Check.Equal(0, new FakeShellExtension(ProbeBehavior.Ok, 8).ObservedVerbs().Length, "fake observes no verbs");
+            Check.False(MenuProbeRules.RequiresRealExtensionInstalled(), "no real extension needed");
+            Check.False(MenuProbeRules.RequiresCloudOrSpecialPermission(), "no cloud or special permission needed");
+            return true;
+        }
+
+        private static bool TestMenuIdRange()
+        {
+            // menu-id-range：InvokeCommand 出参严格落在 [1, maxId]，偏移量 ∈ [0, maxId]
+            Check.Equal(1, MenuInvokeRules.IdCmdFirst, "idCmdFirst is one");
+            Check.Equal(0x7FFF, MenuInvokeRules.IdCmdLast, "idCmdLast is shell ceiling");
+            Check.Equal(10, MenuInvokeRules.MaxIdFromQueryResult(11), "maxId from query result");
+            Check.Equal(0, MenuInvokeRules.MaxIdFromQueryResult(0), "empty menu maxId");
+            Check.Equal(0, MenuInvokeRules.MaxIdFromQueryResult(-3), "negative result clamped");
+            Check.Equal(0, MenuInvokeRules.InvokeOffset(1), "first offset zero");
+            Check.Equal(9, MenuInvokeRules.InvokeOffset(10), "last offset nine");
+            Check.True(MenuInvokeRules.OffsetInRange(0, 10), "offset low bound");
+            Check.True(MenuInvokeRules.OffsetInRange(10, 10), "offset high bound");
+            Check.False(MenuInvokeRules.OffsetInRange(11, 10), "offset above maxId dropped");
+            Check.False(MenuInvokeRules.OffsetInRange(-1, 10), "negative offset dropped");
+            Check.True(MenuInvokeRules.InvokeIdInRange(1, 10), "lowest system id valid");
+            Check.True(MenuInvokeRules.InvokeIdInRange(10, 10), "maxId valid");
+            Check.False(MenuInvokeRules.InvokeIdInRange(11, 10), "id above maxId dropped");
+            Check.False(MenuInvokeRules.InvokeIdInRange(0, 10), "zero id dropped");
+            Check.True(MenuInvokeRules.ShouldDrop(11, 10), "out of range discarded");
+            Check.False(MenuInvokeRules.ShouldDrop(1, 10), "valid id kept");
+            Check.Equal(64, MenuInvokeRules.BufferChars(64), "buffer sized by cchMax");
+            Check.Equal(0, MenuInvokeRules.BufferChars(-1), "negative cchMax rejected");
+            Check.True(MenuInvokeRules.UnicodeLengthIsByCharacter(), "unicode length by character");
+            return true;
+        }
+
+        private static bool TestMenuOwnIdSegment()
+        {
+            // menu-own-id-segment：自有段 ≥ 0x8000，与 shell 段无交集，派发不串
+            Check.Equal(0x8000, MenuModel.OwnIdBase, "own base is 0x8000");
+            Check.True(MenuModel.IsOwnId(0x8000), "own base is own");
+            Check.False(MenuModel.IsOwnId(0x7FFF), "shell ceiling is not own");
+            Check.True(MenuInvokeRules.OwnSegmentDisjoint(), "segments disjoint");
+            Check.True(MenuFusionRules.OwnGroupStartsAboveShellCeiling(), "own group above shell ceiling");
+            Check.Equal(MenuDispatchKind.System, MenuInvokeRules.Classify(1, 10), "system id to shell");
+            Check.Equal(MenuDispatchKind.Own, MenuInvokeRules.Classify(0x8000, 10), "own id to app dispatch");
+            Check.Equal(MenuDispatchKind.Dropped, MenuInvokeRules.Classify(11, 10), "out of range dropped");
+            Check.Equal(MenuDispatchKind.Dropped, MenuInvokeRules.Classify(0, 10), "zero dropped");
+            Check.True(MenuInvokeRules.OwnNeverLeaksToSystem(0x8000, 10), "own id never invokes shell");
+            Check.False(MenuInvokeRules.ShouldDrop(0x8000, 10), "own id not dropped by maxId");
+            Check.False(MenuInvokeRules.InvokeIdInRange(0x8000, 10), "own id never passed to InvokeCommand");
+            Check.Equal(MenuDispatchKind.Own, MenuInvokeRules.Classify(0x8000, 0), "own id valid even with empty shell menu");
+            return true;
+        }
+
+        private static bool TestMenuNoFusion()
+        {
+            // menu-no-fusion：源头消重，等价项用系统项，不等价项改名独立分组
+            Check.Equal(0, MenuFusionRules.DeleteMenuCount(), "zero delete-item calls");
+            Check.Equal(0, MenuFusionRules.InsertShuffleCount(), "zero insert shuffle");
+            Check.True(MenuFusionRules.OwnItemsAreIndependentGroup(), "own items in independent group");
+            Check.Equal(1, MenuFusionRules.OwnGroupSeparatorCount, "one separator");
+            string[] system = new string[] { "&Copy", "Paste...", "Properties" };
+            string[] own = MenuFusionRules.Resolve(system, new string[] { "copy", "用记事本打开", "Paste" });
+            Check.Equal(1, own.Length, "equivalent items removed at source");
+            Check.Equal("用记事本打开", own[0], "non-equivalent item survives");
+            Check.True(MenuFusionRules.NoDuplicateAfterFusion(system,
+                new string[] { "copy", "用记事本打开", "Paste" }), "no duplicate after fusion");
+            Check.True(MenuFusionRules.EquivalentUsesSystemItem(
+                new string[] { "Copy", "Paste" }, "copy"), "equivalent uses system item");
+            Check.True(MenuFusionRules.NonEquivalentKeptAsIndependentItem(
+                new string[] { "Copy", "Paste" }, "复制到另一窗格…"), "renamed item independent");
+            Check.True(MenuFusionRules.BlankAreaExceptionKeptAndRenamed(
+                new string[] { "Properties" }, "当前文件夹属性"), "blank-area exception renamed");
+            return true;
+        }
+
+        private static bool TestMenuMsgForward()
+        {
+            // menu-msg-forward：IContextMenu2/3 转发覆盖 owner-draw 与菜单选择
+            Check.Equal(5, MenuMessageRules.MessageCount, "five forwarded messages");
+            Check.Equal(5, MenuMessageRules.ForwardedCount(), "all five forwarded");
+            Check.True(MenuMessageRules.MustForward(MenuMessage.DrawItem), "draw item forwarded");
+            Check.True(MenuMessageRules.MustForward(MenuMessage.MeasureItem), "measure item forwarded");
+            Check.False(MenuMessageRules.MustForward((MenuMessage)5), "unknown message not forwarded");
+            Check.False(MenuMessageRules.MustForwardUnknown(0x0117), "raw unknown code not forwarded");
+            Check.Equal("HandleMenuMsg2", MenuMessageRules.Handler(MenuMessage.MenuSelect), "handler is HandleMenuMsg2");
+            Check.True(MenuMessageRules.CoversOwnerDraw(), "owner-draw covered");
+            Check.True(MenuMessageRules.CoversMenuSelection(), "menu selection covered");
+            Check.True(MenuMessageRules.CoversCommand(), "command covered");
+            Check.True(MenuMessageRules.UsesOwnerWindow(), "owner window used");
+            Check.True(MenuMessageRules.ForwardsToContextMenu2Or3(), "forwards to IContextMenu2/3");
+            Check.True(MenuMessageRules.ForwardsOnlyDuringTracking(), "forward only while tracking");
+            return true;
+        }
+
+        private static bool TestMenuTargetSnapshot()
+        {
+            // menu-target-snapshot：派发只用打开右键那一刻的 MenuTarget 快照
+            PathKey dir, liveDir;
+            PathKey.TryNormalize(@"D:\Data", out dir);
+            PathKey.TryNormalize(@"D:\Other", out liveDir);
+            List<PathKey> sel = new List<PathKey>();
+            sel.Add(dir);
+            MenuTarget captured = new MenuTarget(sel, dir, 2, 100L);
+            MenuTarget live = new MenuTarget(sel, liveDir, 2, 900L);
+            Check.Equal(1, MenuTargetSnapshotRules.SnapshotsPerInvocation(), "one snapshot per invocation");
+            Check.True(MenuTargetSnapshotRules.SnapshotIsImmutable(), "snapshot immutable");
+            Check.True(MenuTargetSnapshotRules.DispatchUsesSameSnapshot(captured, captured), "same snapshot accepted");
+            Check.False(MenuTargetSnapshotRules.DispatchUsesSameSnapshot(captured, live), "different snapshot rejected");
+            Check.True(MenuTargetSnapshotRules.LivePathCannotReplaceSnapshot(captured, live), "live path cannot replace snapshot");
+            Check.True(MenuTargetSnapshotRules.LivePathCannotReplaceSnapshot(captured, null), "null live keeps snapshot");
+            Check.True(MenuTargetSnapshotRules.SnapshotCarriesCaptureTime(captured), "snapshot carries capture time");
+            Check.True(MenuTargetSnapshotRules.IsFresh(100L, 150L, 100L), "fresh result kept");
+            Check.False(MenuTargetSnapshotRules.IsFresh(100L, 250L, 100L), "stale result rejected");
+            Check.False(MenuTargetSnapshotRules.IsFresh(200L, 150L, 100L), "future capture rejected");
+            Check.True(MenuTargetSnapshotRules.ShouldDiscardStale(100L, 250L, 100L), "stale discarded");
+            Check.False(MenuTargetSnapshotRules.UsesLiveSelection(), "no live selection read");
+            Check.True(MenuTargetSnapshotRules.SystemItemDispatchAlsoUsesSnapshot(), "system dispatch uses snapshot too");
+            return true;
+        }
+
+        private static bool TestMenuSentinel()
+        {
+            // menu-sentinel：标记残留 → 按 ctxKey 降级 → 一键重试 → 再崩 TTL 延长
+            Check.Equal(7, MenuSentinelRules.DefaultTtlDays, "TTL default seven days");
+            Check.Equal(30, MenuSentinelRules.MaxTtlDays, "TTL cap thirty days");
+            string k = MenuSentinelRules.ContextKey("ext-class", "file-type", "vol-type");
+            Check.True(MenuSentinelRules.KeyIsStableForSameContext("ext-class", "file-type", "vol-type"), "ctxKey stable");
+            Check.True(MenuSentinelRules.KeyDiffersAcrossContexts("a", "b", "c", "z"), "ctxKey differs per context");
+            Check.False(MenuSentinelRules.KeyContainsPathOrFileName(), "ctxKey has no path or file name");
+            Check.True(MenuSentinelRules.IsNormalClose(MenuCloseKind.Selected), "selected is normal close");
+            Check.True(MenuSentinelRules.IsNormalClose(MenuCloseKind.Esc), "ESC is normal close");
+            Check.True(MenuSentinelRules.IsNormalClose(MenuCloseKind.ClickOutside), "outside click is normal close");
+            Check.False(MenuSentinelRules.IsNormalClose(MenuCloseKind.Crashed), "crash is not normal close");
+            Check.True(MenuSentinelRules.ClearsPendingOnNormalClose(MenuCloseKind.Esc), "ESC clears pending");
+            Check.False(MenuSentinelRules.ClearsPendingOnNormalClose(MenuCloseKind.Crashed), "crash leaves pending");
+            Check.True(MenuSentinelRules.PendingRemainsAfterCrash(), "pending remains after crash");
+            Check.Equal(SentinelAction.Degrade, MenuSentinelRules.OnStartup(true), "residual degrades");
+            Check.Equal(SentinelAction.None, MenuSentinelRules.OnStartup(false), "clean startup stays native");
+            Check.True(MenuSentinelRules.DegradesByContextKeyOnly(), "degrade by ctxKey only");
+            Check.False(MenuSentinelRules.DegradesGlobally(), "no global shutdown");
+            Check.True(MenuSentinelRules.OtherContextsStayNative(true, "k1", "k2"), "other contexts stay native");
+            Check.False(MenuSentinelRules.OtherContextsStayNative(true, "k1", "k1"), "same context degrades");
+            Check.Equal(SentinelAction.Retry, MenuSentinelRules.OnRetry(), "retry action");
+            Check.True(MenuSentinelRules.RetryClearsSafeEntry(), "retry clears safe entry");
+            Check.Equal(MenuHostMode.Native, MenuSentinelRules.RetryHostMode(), "retry uses native");
+            Check.Equal(SentinelAction.ExtendTtl, MenuSentinelRules.OnCrashAgain(), "crash again extends TTL");
+            Check.Equal(14, MenuSentinelRules.ExtendedTtlDays(7), "TTL 7 to 14");
+            Check.Equal(28, MenuSentinelRules.ExtendedTtlDays(14), "TTL 14 to 28");
+            Check.Equal(30, MenuSentinelRules.ExtendedTtlDays(28), "TTL capped at 30");
+            Check.Equal(7, MenuSentinelRules.ExtendedTtlDays(0), "invalid TTL falls back to default");
+            Check.True(MenuSentinelRules.KeepsHintAfterCrashAgain(), "hint kept after second crash");
+            Check.True(MenuSentinelRules.HintHasReasonAndRetry(), "hint has reason and retry");
+            Check.False(MenuSentinelRules.EnumeratesExtensions(), "extensions not enumerated");
+            Check.False(MenuSentinelRules.IdentifiesConcreteExtension(), "no concrete extension identified");
+            Check.False(MenuSentinelRules.NeedsCrashDump(), "no dump needed");
+            Check.Equal("type;outcome;elapsed_ms;item_count;hr", MenuSentinelRules.CrashSummaryFields(), "redacted crash fields");
+            Check.True(MenuSentinelRules.CrashSummaryIsLocalOnly(), "crash summary local only");
+            Check.False(MenuSentinelRules.ClaimsNeverCrash(), "never-crash not claimed");
+            Check.True(MenuSentinelRules.SessionStateSupportsRetry(), "Crashed can return to Pending");
+            return true;
+        }
+
+        private static bool TestMenuSingleFile()
+        {
+            // menu-single-file：单 exe、零安装、免运行时；隔离宿主为可选演进
+            Check.False(MenuHostRules.IntroducesSecondProcess(), "no second process in default path");
+            Check.False(MenuHostRules.RequiresInstallationOrRuntime(), "no install or runtime");
+            Check.True(MenuHostRules.OptionalHostIsOptIn(), "isolated host is opt-in");
+            Check.Equal(MenuHostMode.Native, MenuHostRules.DefaultMode(), "default still native");
+            // FakeShellExtension 四态覆盖，不依赖真机装扩展
+            Check.Equal(4, MenuProbeRules.BehaviorCount, "four probe behaviors");
+            Check.True(MenuProbeRules.CoversAllBehaviors(new ProbeBehavior[]
+            {
+                ProbeBehavior.Ok, ProbeBehavior.OutOfRange, ProbeBehavior.OwnerDraw, ProbeBehavior.Crash
+            }), "four-state matrix covered");
+            Check.False(MenuProbeRules.CoversAllBehaviors(new ProbeBehavior[]
+            {
+                ProbeBehavior.Ok, ProbeBehavior.OutOfRange, ProbeBehavior.OwnerDraw
+            }), "incomplete matrix rejected");
+            FakeShellExtension ok = new FakeShellExtension(ProbeBehavior.Ok, 10);
+            Check.Equal(11, ok.QueryContextMenu(), "fake query result");
+            Check.Equal(10, ok.MaxId(), "fake maxId");
+            Check.Equal(1, ok.SelectedId(), "fake selected id");
+            Check.True(ok.Invoke(1), "valid system id invokes");
+            Check.Equal(1, ok.InvokeCount, "one invocation");
+            Check.False(ok.Invoke(11), "out-of-range id never invokes");
+            Check.Equal(1, ok.InvokeCount, "invocation count unchanged");
+            Check.True(ok.ClosesNormally(), "ok closes normally");
+            Check.False(ok.DependsOnRealMachine(), "fake independent of real machine");
+            FakeShellExtension bad = new FakeShellExtension(ProbeBehavior.OutOfRange, 10);
+            Check.Equal(4106, bad.SelectedId(), "out-of-range id");
+            Check.True(MenuProbeRules.ShouldDrop(ProbeBehavior.OutOfRange, 10), "out-of-range dropped");
+            Check.False(bad.Invoke(bad.SelectedId()), "out-of-range never invokes shell");
+            Check.Equal(0, bad.InvokeCount, "no shell invocation on bad id");
+            FakeShellExtension draw = new FakeShellExtension(ProbeBehavior.OwnerDraw, 10);
+            Check.True(draw.NeedsMessageForward(), "owner-draw needs message forward");
+            Check.Equal(MenuModel.OwnIdBase, draw.SelectedId(), "owner-draw uses own segment");
+            Check.False(draw.Invoke(draw.SelectedId()), "own id never invokes shell");
+            FakeShellExtension crash = new FakeShellExtension(ProbeBehavior.Crash, 10);
+            Check.False(crash.ClosesNormally(), "crash does not close normally");
+            Check.Equal(MenuCloseKind.Crashed, crash.Close(), "crash close kind");
+            Check.False(crash.DependsOnCloudOrPermission(), "fake independent of cloud");
+            return true;
+        }
+
+        private static bool TestMenuRelease()
+        {
+            // menu-release：HMENU / COM 每会话 try-finally 释放
+            Check.Equal(2, MenuReleaseRules.ResourcesPerSession, "two resources per session");
+            Check.True(MenuReleaseRules.UsesTryFinally(), "try-finally used");
+            Check.True(MenuReleaseRules.ReleasesOnAllExitPaths(MenuCloseKind.Selected), "release on select");
+            Check.True(MenuReleaseRules.ReleasesOnAllExitPaths(MenuCloseKind.Esc), "release on ESC");
+            Check.True(MenuReleaseRules.ReleasesOnAllExitPaths(MenuCloseKind.ClickOutside), "release on outside click");
+            Check.True(MenuReleaseRules.ReleasesOnAllExitPaths(MenuCloseKind.Crashed), "release on crash");
+            Check.Equal(0, MenuReleaseRules.ReleaseCallCount(0), "no session no release");
+            Check.Equal(2, MenuReleaseRules.ReleaseCallCount(1), "one session two releases");
+            Check.Equal(6, MenuReleaseRules.ReleaseCallCount(3), "three sessions six releases");
+            Check.True(MenuReleaseRules.ReleasesMenuHandle(), "HMENU released");
+            Check.True(MenuReleaseRules.ReleasesComInterface(), "COM interface released");
+            Check.False(MenuReleaseRules.CachesMenuPointerAcrossSessions(), "no menu pointer cache");
+            Check.False(MenuReleaseRules.CachesComPointerAcrossSessions(), "no COM pointer cache");
+            Check.True(MenuReleaseRules.NewInstancePerInvocation(), "new instance per invocation");
+            Check.True(MenuReleaseRules.DestroyMenuCalled(), "DestroyMenu called");
+            Check.True(MenuReleaseRules.OrderIsMenuThenCom(MenuReleaseRules.ReleaseOrder()), "menu then COM order");
+            Check.False(MenuReleaseRules.OrderIsMenuThenCom(new string[] { "COM", "HMENU" }), "wrong order rejected");
+            Check.False(MenuReleaseRules.OrderIsMenuThenCom(null), "null order rejected");
             return true;
         }
     }

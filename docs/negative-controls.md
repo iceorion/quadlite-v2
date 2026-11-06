@@ -87,6 +87,27 @@ B3 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 
 B4 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担。本机安全策略禁止执行系统 C# 编译器，故本机只记静态那一半。
 
+## B5 登记
+
+| 不变量 | 破坏方式 | 应红门卡 |
+|---|---|---|
+| B5 菜单规则类型齐备 | 临时副本删掉 `MenuFusionRules.cs` | `check-menu-specs`、`check-core-specs` |
+| B5 门卡组注册齐备 | 临时副本删掉 `Run("menu-id-range", TestMenuIdRange);` | `check-menu-specs`、`check-core-specs` |
+| 产品路径零 verb 查询 | 临时副本把 `VerbScanCount()` 从 `return 0` 改成 `return 1` | `check-menu-specs` |
+| 产品程序集不读 verb | 临时副本在产品源码注入 verb 查询字样 | `check-menu-specs`、`check-open-source` |
+| App 菜单状态内核齐备 | 临时副本删掉 `MenuState.cs` | `check-menu-specs` |
+| L4 菜单状态内核零 I/O、不引用测试替身 | 临时副本在 `MenuState.cs` 注入 `using System.IO;` | `check-menu-specs`、`check-boundaries` B-02 |
+| C# 5 语法子集 | 临时副本注入字符串插值 | `check-menu-specs`、`check-core-specs` |
+| 默认系统原生、四步序列、零删项、零菜单树改写 | 改实现或改断言后，CI 编译运行 C# runner | `csharp-runner` `menu-native-default` / `menu-no-verb-scan` |
+| `InvokeCommand` 出参 `[1, maxId]`、自有段 ≥ `0x8000` 不串 shell | 改参数规则或断言 | `csharp-runner` `menu-id-range` / `menu-own-id-segment` |
+| 源头消重：等价项用系统项、不等价项改名独立分组 | 改消重规则或断言 | `csharp-runner` `menu-no-fusion` |
+| `IContextMenu2/3` 五类消息转发、目标快照不可变 | 改转发 / 快照规则或断言 | `csharp-runner` `menu-msg-forward` / `menu-target-snapshot` |
+| 崩溃哨兵：ctxKey 降级 / 7 天 TTL / 一键重试 / 再崩翻倍 | 改哨兵规则或断言 | `csharp-runner` `menu-sentinel` |
+| 单文件 / 假扩展四态 / HMENU 与 COM try-finally 释放 | 改宿主或释放规则 / 断言 | `csharp-runner` `menu-single-file` / `menu-release` |
+| 规格与实现一致（规格 v1.2 与 B5 判据声明不得擅改） | 改动 `design-v2.md` §8.1 的 B5 行或版本状态 | `check-menu-specs` |
+
+B5 的 7 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担，本机只记静态那一半。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -96,7 +117,8 @@ B4 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
-| 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
+| 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 首次实跑待回填（本机未验证） |
+| 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（62 个 .cs，命中 0 次；负向对照注入后必红） |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
 | 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
@@ -105,6 +127,10 @@ B4 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
 | 真实 WPF 窗口 / XAML / 消息循环 / 事件绑定 | B3 后续批次 | **未实现 / 未验证**（B3 只交状态内核与可编译骨架） |
 | 真实 WPF 列表控件 / 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 / 图标与缩略图渲染 | B4 后续批次 / B6 | **未实现 / 未验证**（B4 只交规则层与可编译状态内核） |
+| 真实 `NativeMenuHost` / `IContextMenu` / `IContextMenu2/3` COM 调用、HMENU 生命周期、`TrackPopupMenuEx` 消息循环 | B5 后续批次 / B7 | **未实现 / 未验证**（成熟 COM 绑定未定，见 `ADR-v2-007` D6） |
+| 崩溃哨兵磁盘标记 `data\menu-pending.json` / `menu-safe.json` TTL 过期、自绘兜底 UI 与一键重试按钮 | B5 后续批次 / B6 | **未实现 / 未验证**（只交不可变状态内核与结构化提示串） |
+| 自有命令真实菜单项插入（ID ≥ `0x8000`） | B5 后续批次 | **未实现 / 未验证**（只交源头消重纯函数判据） |
+| `FakeShellExtension` 归位 `QuadLite.Probe` 项目 | 建 Probe 项目时迁移 | **偏差已登记**（暂驻 `tests/QuadLite.Tests/MenuFakes.cs`，见 `ADR-v2-007` D6） |
 | 真实目录枚举（`FindFirstFileExW` + `LARGE_FETCH`、4096 / 批） | Fs 层后续批次 | **未实现 / 未验证**（`DirSource` 当前为 128 / 批，见 `ADR-v2-006` D6） |
 | 名称拼音分桶 / 修改日期月历 / 类型动态枚举 | B4 后续批次 | **未实现 / 未验证**（只落地桶键组合逻辑） |
 | 可编辑地址栏、标签拖动 UI、此电脑层真实枚举与盘符取图、会话原子写与备份 | B3 后续批次 / Fs 层 | **未实现 / 未验证** |
@@ -121,6 +147,8 @@ B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + 
 B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Core + App 外壳状态内核编成单个 library，**只编译、不运行**，且不引用呈现框架程序集；`csharp-runner` 扩到 27 组（含 6 组 B3 外壳）。真实 WPF 窗口 / XAML / 消息循环不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42040769639`（head `378432a`），十个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 27 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。首个功能提交 `15d0aa9` 的 run `42040381217` 因 `bookmark-*` 断言期望值笔误在 `csharp-runner` 判红，修正提交 `378432a` 后复跑全绿；该次红不作为通过证据。逐批结论见 `docs/run-ledger.md`。
 
 B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 11 个 Core 与 2 个 App 文件，无需新增编译步骤）：`csharp-runner` 扩到 33 组（含 6 组 B4 列表），`csharp-app-compile` 编译 4 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集。真实 WPF 列表控件 / 虚拟化面板 / 拖放不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42224901915`（head `8ed8b5b`），十一个门卡 / 编译步骤逐项 `success`，其中 `check-list-specs` `success`、`csharp-runner` 退出码 0 ⇒ 33 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
+
+B5 起 CI 再增加 `check-menu-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core、2 个 App 与 1 个 Tests 文件，无需新增编译步骤）：`csharp-runner` 扩到 43 组（含 10 组 B5 菜单），`csharp-app-compile` 编译 6 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；§10「产品程序集 verb 查询 0 次」由 `check-menu-specs` 与 `check-open-source` 双门卡本机实测。真实原生菜单 COM 宿主 / 崩溃哨兵磁盘标记 / 自绘兜底 UI 不在 CI 内，相关项维持「未验证」。**CI 首次实跑待回填**，逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

@@ -41,8 +41,14 @@ namespace QuadLite.Tests
             Run("nav-*", TestNav);
             Run("bookmark-*", TestBookmarks);
             Run("session-*", TestSession);
+            Run("group-*", TestGroup);
+            Run("filter-*", TestFilter);
+            Run("toggle-*", TestToggle);
+            Run("hit-*", TestHit);
+            Run("status-*", TestStatus);
+            Run("keys-*", TestKeys);
 
-            Console.WriteLine("groups=27, failed=" + failures.ToString());
+            Console.WriteLine("groups=33, failed=" + failures.ToString());
             if (failures == 0)
             {
                 Console.WriteLine("verdict: GREEN");
@@ -191,6 +197,25 @@ namespace QuadLite.Tests
             Check.False(ColumnLayout.TryFor(1000, new int[] { 1, -1, 0, 0 }, out w), "negative preference");
             Check.False(ColumnLayout.IsValid(1000, new int[] { 10, 10, 10, 10 }), "narrow strips rejected");
             Check.False(ColumnLayout.IsValid(1000, new int[] { 100, 100, 100 }), "column count");
+
+            // B4 cols-*：拖宽 / 双击复位 / 偏好按标签 / 列宽唯一来源
+            Check.Equal(0, ColumnPrefRules.Auto, "0 = auto");
+            Check.Equal(4, ColumnPrefRules.BoundaryCount, "four boundaries");
+            int[] prefs = ColumnPrefRules.DefaultPrefs();
+            Check.Equal(4, prefs.Length, "one pref per column");
+            Check.True(ColumnPrefRules.IsAuto(prefs[0]), "default is auto");
+            int[] dragged = ColumnPrefRules.Drag(prefs, 1, 200);
+            Check.Equal(200, dragged[1], "drag writes dragged column");
+            Check.Equal(0, prefs[1], "drag does not mutate input");
+            int[] reset = ColumnPrefRules.ResetColumn(dragged, 1);
+            Check.Equal(0, reset[1], "double click resets to auto");
+            Check.Equal(4, ColumnPrefRules.DraggableBoundaries(), "four draggable boundaries");
+            Check.True(ColumnPrefRules.Drag(prefs, 5, 100) == null, "bad column refused");
+            Check.True(ColumnPrefRules.PrefsPerTab(ColumnPrefRules.CloneForTab(prefs),
+                                                   ColumnPrefRules.CloneForTab(prefs)), "prefs per tab");
+            Check.True(ColumnPrefRules.WidthsComeFromSingleSource(1000, prefs), "ColumnLayout is single source");
+            Check.Equal(988, ColumnPrefRules.ExpectedSum(1000), "sum = row - gutter");
+            Check.False(ColumnPrefRules.IsValidPrefs(new int[] { 0, 0, 0 }), "wrong pref length");
             return true;
         }
 
@@ -210,6 +235,21 @@ namespace QuadLite.Tests
             Check.Equal(0, ViewSpecs.For(ViewMode.Details).TargetPx, "details no thumbnail");
             Check.True(ViewSpecs.NeedsThumbnail(ViewMode.Tiles), "single source for thumbnails");
             Check.False(ViewSpecs.NeedsThumbnail(ViewMode.Small), "small no thumbnail");
+
+            // B4 view-*：组头只在详细信息档、图标档不渲染组头、缩略图目标唯一来源
+            Check.True(ViewRules.RendersGroupHeader(ViewMode.Details), "details renders group header");
+            Check.False(ViewRules.RendersGroupHeader(ViewMode.Tiles), "tiles no group header");
+            Check.True(ViewRules.IsIconMode(ViewMode.ExtraLarge), "extra large is icon mode");
+            Check.False(ViewRules.IsIconMode(ViewMode.Details), "details not icon mode");
+            Check.Equal(96, ViewRules.ThumbnailTarget(ViewMode.Large), "large target 96");
+            Check.True(ViewRules.NeedsThumbnail(ViewMode.Tiles), "tiles needs thumbnail");
+            Check.False(ViewRules.NeedsThumbnail(ViewMode.List), "list no thumbnail");
+            Check.True(ViewRules.OnlyDetailsRendersGroupHeader(), "exactly one mode renders header");
+            Check.Equal(4, ViewRules.IconModeCount(), "four icon modes");
+            Check.True(ViewRules.IsKnownMode(6), "last mode known");
+            Check.False(ViewRules.IsKnownMode(7), "mode out of range");
+            Check.True(ViewRules.GroupHeaderIsDetailsOnly(ViewMode.Details), "details header ok");
+            Check.True(ViewRules.GroupHeaderIsDetailsOnly(ViewMode.Small), "small no header ok");
             return true;
         }
 
@@ -294,6 +334,24 @@ namespace QuadLite.Tests
             }
             Check.True(OpPlanBuilder.IsKindKnown(7), "last kind known");
             Check.False(OpPlanBuilder.IsKindKnown(8), "kind out of range");
+
+            // B4 enum-*：4096/批、可取消、迟到批次丢弃、虚拟滚动
+            Check.Equal(4096, EnumBatchRules.DefaultBatchSize, "4096 per batch");
+            Check.False(EnumBatchRules.IsValidBatchSize(0), "zero batch size refused");
+            Check.Equal(3, EnumBatchRules.BatchCount(10000, 4096), "ceil batch count");
+            Check.Equal(0, EnumBatchRules.BatchCount(0, 4096), "empty dir no batch");
+            Check.Equal(8192, EnumBatchRules.BatchStart(2, 4096), "batch start");
+            Check.Equal(4096, EnumBatchRules.BatchLength(0, 10000, 4096), "full batch length");
+            Check.Equal(1808, EnumBatchRules.BatchLength(2, 10000, 4096), "tail batch length");
+            Check.True(EnumBatchRules.IsLateBatch(3, 4), "stale generation detected");
+            Check.False(EnumBatchRules.ShouldApplyBatch(3, 4, false), "stale batch dropped");
+            Check.False(EnumBatchRules.ShouldApplyBatch(4, 4, true), "cancelled batch dropped");
+            Check.True(EnumBatchRules.ShouldApplyBatch(4, 4, false), "current batch applied");
+            Check.True(EnumBatchRules.StopsAfterCancel(true), "cancel stops batches");
+            Check.Equal(30, EnumBatchRules.RealizedRows(10000, 30), "only viewport rows realized");
+            Check.Equal(10, EnumBatchRules.RealizedRows(10, 30), "small dir fully realized");
+            Check.True(EnumBatchRules.IsVirtualized(10000, 30), "large dir virtualized");
+            Check.False(EnumBatchRules.IsVirtualized(10, 30), "small dir not virtualized");
             return true;
         }
 
@@ -330,6 +388,24 @@ namespace QuadLite.Tests
             Check.Equal("a10", rows[1], "sorted 1");
             Check.Equal("file2.txt", rows[2], "sorted 2");
             Check.Equal("file10.txt", rows[3], "sorted 3");
+
+            // B4 sort-*：列头点击切换升降序、换列回升序、名称列走自然排序
+            Check.Equal(4, SortRules.FieldCount, "four sort fields");
+            SortSpec sdef = SortRules.Default();
+            Check.Equal(SortField.Name, sdef.Field, "default sort by name");
+            Check.Equal(SortDirection.Ascending, sdef.Direction, "default ascending");
+            SortSpec sflip = SortRules.OnHeaderClick(sdef, SortField.Name);
+            Check.Equal(SortDirection.Descending, sflip.Direction, "same column flips to descending");
+            SortSpec sback = SortRules.OnHeaderClick(sflip, SortField.Name);
+            Check.Equal(SortDirection.Ascending, sback.Direction, "same column flips back");
+            SortSpec snew = SortRules.OnHeaderClick(sflip, SortField.Date);
+            Check.Equal(SortField.Date, snew.Field, "new column selected");
+            Check.Equal(SortDirection.Ascending, snew.Direction, "new column resets to ascending");
+            Check.True(SortRules.UsesNaturalComparer(SortField.Name), "name uses natural comparer");
+            Check.False(SortRules.UsesNaturalComparer(SortField.Size), "size not natural comparer");
+            Check.True(SortRules.CompareNamesWithDirection("a2", "a10", SortDirection.Ascending) < 0, "asc natural");
+            Check.True(SortRules.CompareNamesWithDirection("a2", "a10", SortDirection.Descending) > 0, "desc natural");
+            Check.Equal(-3, SortRules.ApplyDirection(3, SortDirection.Descending), "direction flips sign");
             return true;
         }
 
@@ -448,6 +524,30 @@ namespace QuadLite.Tests
             Check.False(SelectionRules.IsSelectable(rows[0]), "group header not selectable");
             Check.False(SelectionRules.IsSelectable(rows[2]), "filtered row not selectable");
             Check.False(SelectionRules.IsSelectable(rows[3]), "disabled row not selectable");
+
+            // B4 select-*：点选 / Ctrl / Shift 多选、框选仅图标档、Ctrl+A 排除三类
+            Check.True(SelectionInput.ExcludesThreeClasses(), "Ctrl+A excludes three classes");
+            int[] pt = SelectionInput.Point(5, 2);
+            Check.Equal(1, pt.Length, "point selects one");
+            Check.Equal(2, pt[0], "point index");
+            Check.Equal(0, SelectionInput.Point(5, 9).Length, "point out of range empty");
+            int[] c1 = SelectionInput.CtrlToggle(new int[0], 3, 5);
+            Check.Equal(1, c1.Length, "ctrl adds");
+            Check.Equal(3, c1[0], "ctrl added index");
+            int[] c2 = SelectionInput.CtrlToggle(c1, 3, 5);
+            Check.Equal(0, c2.Length, "ctrl toggles off");
+            int[] c3 = SelectionInput.CtrlToggle(new int[] { 1, 2 }, 4, 5);
+            Check.Equal(3, c3.Length, "ctrl appends");
+            Check.Equal(4, c3[2], "ctrl appended index");
+            int[] sr = SelectionInput.ShiftRange(1, 4, 5);
+            Check.Equal(4, sr.Length, "shift range length");
+            Check.Equal(1, sr[0], "shift range start");
+            Check.Equal(4, sr[3], "shift range end");
+            Check.Equal(4, SelectionInput.ShiftRange(4, 1, 5).Length, "shift range reversed");
+            Check.Equal(0, SelectionInput.ShiftRange(1, 9, 5).Length, "shift out of range empty");
+            Check.True(SelectionInput.MarqueeAllowed(ViewMode.Large), "icon mode marquee");
+            Check.False(SelectionInput.MarqueeAllowed(ViewMode.Details), "details no marquee");
+            Check.True(SelectionInput.DetailsMarqueeIsNonTarget(), "details marquee is non-target");
             return true;
         }
 
@@ -929,6 +1029,163 @@ namespace QuadLite.Tests
             Check.Equal(2, SessionRules.RemainingAfterBadItem(3, 1), "bad field isolated");
             Check.True(SessionRules.BadItemIsolated(3, 1), "not whole file rejected");
             Check.Equal(8, SessionRules.RequiredFields().Length, "session fields complete");
+            return true;
+        }
+
+        private static bool TestGroup()
+        {
+            // 分组（§5.9）：组头不进显示行集、图标档不渲染组头、组内不二次排序
+            Check.False(GroupRules.HeaderEntersRowSet(), "header never in row set");
+            Check.True(GroupRules.HeaderAppearsInDisplayList(), "header lives in display list");
+            Check.True(GroupRules.RendersHeader(ViewMode.Details), "details renders header");
+            Check.False(GroupRules.RendersHeader(ViewMode.Large), "icon mode no header");
+            Check.False(GroupRules.IconModeRendersHeader(ViewMode.ExtraLarge), "icon never renders header");
+            Check.Equal(-1, GroupRules.Compare(0, 1, 5), "group order wins over inner");
+            Check.Equal(5, GroupRules.Compare(1, 1, 5), "same group keeps inner comparison");
+            Check.True(GroupRules.NoSecondSort(-3), "inner comparison unchanged");
+            Check.True(GroupRules.GroupHeaderIsNotSelectable(), "header not selectable");
+            Check.Equal(13, GroupRules.DisplayListCount(10, 3), "display list = rows + headers");
+            Check.Equal(0, GroupRules.DisplayListCount(-1, 3), "negative rows rejected");
+            return true;
+        }
+
+        private static bool TestFilter()
+        {
+            // 列头筛选（§5.9）：四列 / 大小五档 / 同列或 / 跨列与 / 导航清 F5 留 / 不写会话
+            Check.Equal(4, FilterRules.ColumnCount, "four filter columns");
+            Check.Equal(5, FilterRules.BucketCount, "five size buckets");
+            Check.True(FilterRules.IsKnownColumn(FilterColumn.Name), "name column known");
+            Check.True(FilterRules.SameColumnIsOr(2, new int[] { 1, 2, 3 }), "same column OR hit");
+            Check.False(FilterRules.SameColumnIsOr(9, new int[] { 1, 2, 3 }), "same column OR miss");
+            Check.True(FilterRules.SameColumnIsOr(2, new int[0]), "empty selection no constraint");
+            Check.True(FilterRules.CrossColumnIsAnd(true, true, true, true), "cross column AND pass");
+            Check.False(FilterRules.CrossColumnIsAnd(true, false, true, true), "cross column AND fail");
+            Check.Equal(SizeBucket.Empty, FilterRules.BucketOf(0), "zero is empty bucket");
+            Check.Equal(SizeBucket.Tiny, FilterRules.BucketOf(1024L), "tiny bucket");
+            Check.Equal(SizeBucket.Small, FilterRules.BucketOf(2L * 1024L * 1024L), "small bucket");
+            Check.Equal(SizeBucket.Medium, FilterRules.BucketOf(100L * 1024L * 1024L), "medium bucket");
+            Check.Equal(SizeBucket.Large, FilterRules.BucketOf(2L * 1024L * 1024L * 1024L), "large bucket");
+            Check.Equal("0:3", FilterRules.ColumnKey(FilterColumn.Name, 3), "column key format");
+
+            string[][] sel = new string[4][];
+            sel[0] = new string[] { "0:1", "0:2" };   // 名称列：两桶「或」
+            sel[1] = null;
+            sel[2] = null;
+            sel[3] = new string[] { "3:4" };          // 大小列：Large
+            string[] rowA = new string[] { "0:2", "1:x", "2:y", "3:4" };
+            Check.True(FilterRules.Matches(rowA, sel), "name OR + size AND pass");
+            string[] rowB = new string[] { "0:9", "1:x", "2:y", "3:4" };
+            Check.False(FilterRules.Matches(rowB, sel), "name column miss rejects row");
+            string[] rowC = new string[] { "0:2", "1:x", "2:y", "3:0" };
+            Check.False(FilterRules.Matches(rowC, sel), "size column miss rejects row");
+
+            Check.True(FilterRules.ClearsOn(NavAction.Navigate), "navigate clears filter");
+            Check.True(FilterRules.KeepsOn(NavAction.RefreshInPlace), "F5 keeps filter");
+            Check.False(FilterRules.ClearsOn(NavAction.RefreshInPlace), "F5 does not clear");
+            Check.False(FilterRules.PersistsToSession(), "filter not written to session");
+            Check.True(FilterRules.ArrowVisible(10), "arrow from non-empty full table");
+            Check.False(FilterRules.ArrowVisible(0), "empty table no arrow");
+            Check.True(FilterRules.SourcesAllUseDisplayRowSet(7, 7, 7, 7, 7), "four sources agree");
+            Check.False(FilterRules.SourcesAllUseDisplayRowSet(7, 10, 7, 7, 7), "status reading full table rejected");
+            Check.Equal(4, FilterRules.SourceCount(), "four consumers of display row set");
+            return true;
+        }
+
+        private static bool TestToggle()
+        {
+            // 显示开关（§5.9）：四开关 16 组合、三态过滤、不回顶、会话持久化、缩略图不重枚举
+            Check.Equal(4, ToggleRules.ToggleCount, "four toggles");
+            Check.Equal(16, ToggleRules.StateCount, "sixteen combinations");
+            ToggleState def = ToggleRules.Default();
+            Check.False(def.ShowHidden, "hidden off by default");
+            Check.False(def.ShowSystem, "system off by default");
+            Check.True(def.ShowExtension, "extension on by default");
+            Check.False(def.ShowThumbnail, "thumbnail off by default");
+            Check.True(ToggleRules.IsVisible(def, EntryVisibility.Normal), "normal always visible");
+            Check.False(ToggleRules.IsVisible(def, EntryVisibility.Hidden), "hidden hidden by default");
+            Check.False(ToggleRules.IsVisible(def, EntryVisibility.System), "system hidden by default");
+            ToggleState flipped = ToggleRules.Flip(def, DisplayToggle.Hidden);
+            Check.True(flipped.ShowHidden, "flipped hidden on");
+            Check.True(ToggleRules.IsVisible(flipped, EntryVisibility.Hidden), "hidden now visible");
+            Check.False(def.ShowHidden, "flip does not mutate input");
+            Check.Equal(4, ToggleRules.CombinationIndex(def), "extension bit only");
+            Check.Equal(15, ToggleRules.CombinationIndex(new ToggleState(true, true, true, true)), "all-on index");
+            Check.True(ToggleRules.IsKnownCombination(15), "last combination known");
+            Check.False(ToggleRules.IsKnownCombination(16), "combination out of range");
+            Check.True(ToggleRules.IsKnown(DisplayToggle.Hidden), "known toggle");
+            Check.True(ToggleRules.PersistsToSession(), "toggles persist to session");
+            Check.Equal(7, ToggleRules.ViewportAnchorAfterToggle(7), "viewport anchor preserved");
+            Check.True(ToggleRules.KeepsViewport(7, 7), "toggle keeps viewport");
+            Check.False(ToggleRules.KeepsViewport(7, 0), "scroll to top rejected");
+            Check.False(ToggleRules.RequiresReenumeration(DisplayToggle.Thumbnail), "thumbnail toggle no reenum");
+            Check.True(ToggleRules.RequiresReenumeration(DisplayToggle.Hidden), "hidden toggle reenumerates");
+            return true;
+        }
+
+        private static bool TestHit()
+        {
+            // 命中测试（§5.10）：四类结果、三消费方共用、图标档空白与条目分流
+            Check.Equal(4, HitTestRules.KindCount, "four hit kinds");
+            Check.True(HitTestRules.IsKnown(HitKind.Item), "item known");
+            Check.True(HitTestRules.SharedBy(HitKind.Item, HitKind.Item, HitKind.Item), "shared hit");
+            Check.False(HitTestRules.SharedBy(HitKind.Item, HitKind.Blank, HitKind.Item), "inconsistent hit rejected");
+            Check.Equal(1, HitTestRules.DoubleClickAction(ViewMode.Large, HitKind.Item), "double click item opens");
+            Check.Equal(2, HitTestRules.DoubleClickAction(ViewMode.Large, HitKind.Blank), "icon blank clears selection");
+            Check.Equal(0, HitTestRules.DoubleClickAction(ViewMode.Details, HitKind.Blank), "details blank no action");
+            Check.True(HitTestRules.BlankDiffersFromItem(ViewMode.Large), "icon blank differs from item");
+            Check.True(HitTestRules.DetailsBlankIsNoAction(), "details blank is no action");
+            Check.True(HitTestRules.IsItemTarget(HitKind.Item), "item is target");
+            Check.False(HitTestRules.IsItemTarget(HitKind.GroupHeader), "group header not target");
+            Check.False(HitTestRules.IsItemTarget(HitKind.ColumnHeader), "column header not target");
+            return true;
+        }
+
+        private static bool TestStatus()
+        {
+            // 状态栏（§5.10）：按筛后可见行计数、选中数、文案来自结构化结果
+            Check.Equal(3, StatusRules.FieldCount(), "three status fields");
+            PathKey k1, k2;
+            PathKey.TryNormalize(@"D:\Data\a.txt", out k1);
+            PathKey.TryNormalize(@"D:\Data\b.txt", out k2);
+            List<PathKey> picked = new List<PathKey>();
+            picked.Add(k1);
+            picked.Add(k2);
+            Selection sel = new Selection(picked, 5);
+            Check.Equal(5, StatusRules.VisibleCount(sel), "visible row count from selection");
+            Check.Equal(2, StatusRules.SelectedCount(sel), "selected count");
+            Check.Equal(0, StatusRules.VisibleCount(null), "null selection zero");
+            Check.True(StatusRules.CanRenderResult(new object()), "structured result renders");
+            Check.False(StatusRules.CanRenderResult(null), "null result rejected");
+            Check.Equal("", StatusRules.ResultText(null), "null text empty");
+            Check.Equal("ok", StatusRules.ResultText("ok"), "text from structured result");
+            Check.True(StatusRules.ClaimsSuccess(true, true), "explicit success");
+            Check.False(StatusRules.ClaimsSuccess(false, true), "no structured result no success claim");
+            Check.True(StatusRules.RejectsInferredSuccess(), "no success inferred from no-exception");
+            Check.True(StatusRules.CountMatchesDisplayedSet(5, 5), "count matches displayed set");
+            Check.False(StatusRules.CountMatchesDisplayedSet(5, 9), "full-table count rejected");
+            return true;
+        }
+
+        private static bool TestKeys()
+        {
+            // 快捷键（§5.10）：13 键、作用范围、忙时行为、表逐键完备
+            Check.Equal(13, KeyMap.ActionCount, "thirteen actions");
+            Check.True(KeyMap.IsKnown(KeyAction.Copy), "copy known");
+            Check.False(KeyMap.IsKnown((KeyAction)13), "action out of range");
+            Check.Equal(KeyScope.Global, KeyMap.ScopeOf(KeyAction.Undo), "undo is global");
+            Check.Equal(KeyScope.Context, KeyMap.ScopeOf(KeyAction.Escape), "escape is context");
+            Check.Equal(KeyScope.ActivePane, KeyMap.ScopeOf(KeyAction.Copy), "copy is active pane");
+            Check.Equal(BusyBehavior.DisabledWithHint, KeyMap.BusyBehaviorOf(KeyAction.Copy), "copy busy disabled with hint");
+            Check.Equal(BusyBehavior.DisabledNoUndoStep, KeyMap.BusyBehaviorOf(KeyAction.Undo), "undo busy no step");
+            Check.Equal(BusyBehavior.Enabled, KeyMap.BusyBehaviorOf(KeyAction.Refresh), "F5 busy enabled");
+            Check.True(KeyMap.IsEnabledWhileBusy(KeyAction.Refresh), "F5 available while busy");
+            Check.False(KeyMap.IsEnabledWhileBusy(KeyAction.Delete), "delete disabled while busy");
+            Check.True(KeyMap.UndoCreatesNoStepWhileBusy(KeyAction.Undo), "undo creates no step while busy");
+            Check.False(KeyMap.UndoCreatesNoStepWhileBusy(KeyAction.Copy), "non-undo not this rule");
+            Check.True(KeyMap.IsTableComplete(), "key table complete");
+            Check.Equal(5, KeyMap.EnabledWhileBusyCount(), "five read-only actions stay enabled");
+            Check.True(KeyMap.IsReadOnlyAction(KeyAction.SelectAll), "select all is read-only");
+            Check.False(KeyMap.IsReadOnlyAction(KeyAction.Delete), "delete is not read-only");
             return true;
         }
     }

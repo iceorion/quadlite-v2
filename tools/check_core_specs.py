@@ -55,6 +55,18 @@ CORE_TYPES = {
     "BookmarkRules.cs": r"\bclass\s+BookmarkRules\b",
     "SessionRules.cs": r"\bclass\s+SessionRules\b",
     "ThisPc.cs": r"\bclass\s+ThisPc\b",
+    # B4：列表 / 视图功能域规则层（全部零 I/O）
+    "ViewRules.cs": r"\bclass\s+ViewRules\b",
+    "SortRules.cs": r"\bclass\s+SortRules\b",
+    "GroupRules.cs": r"\bclass\s+GroupRules\b",
+    "ColumnPrefRules.cs": r"\bclass\s+ColumnPrefRules\b",
+    "FilterRules.cs": r"\bclass\s+FilterRules\b",
+    "ToggleRules.cs": r"\bclass\s+ToggleRules\b",
+    "SelectionInput.cs": r"\bclass\s+SelectionInput\b",
+    "EnumBatchRules.cs": r"\bclass\s+EnumBatchRules\b",
+    "HitTestRules.cs": r"\bclass\s+HitTestRules\b",
+    "StatusRules.cs": r"\bclass\s+StatusRules\b",
+    "KeyMap.cs": r"\bclass\s+KeyMap\b",
 }
 
 EXPECTED_GROUPS = [
@@ -65,6 +77,8 @@ EXPECTED_GROUPS = [
     "op-*", "undo-*", "name-*", "refresh-*", "clipboard-*", "cli-*", "portable-*",
     # B3 新增门卡组
     "layout-*", "split-*", "tab-*", "nav-*", "bookmark-*", "session-*",
+    # B4 新增门卡组
+    "group-*", "filter-*", "toggle-*", "hit-*", "status-*", "keys-*",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -105,6 +119,18 @@ ENUM_EXPECT = {
     "BookmarkState": 3,
     "SessionReject": 4,
     "ThisPcKind": 3,
+    # B4 新增枚举
+    "SortField": 4,
+    "SortDirection": 2,
+    "FilterColumn": 4,
+    "SizeBucket": 5,
+    "DisplayToggle": 4,
+    "EntryVisibility": 3,
+    "SelectGesture": 5,
+    "HitKind": 4,
+    "KeyAction": 13,
+    "KeyScope": 3,
+    "BusyBehavior": 3,
 }
 
 

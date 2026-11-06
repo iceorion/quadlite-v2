@@ -7,7 +7,8 @@
 负向对照按「不变量」覆盖：故意破坏一条不变量后，对应门卡必须变红。
 B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-specs 正向 +
 两类 B2 编排 / 两类 Fs 适配器的负向对照；B3 起增加 check-shell-specs 正向 +
-六类外壳静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+六类外壳静态契约负向对照；B4 起增加 check-list-specs 正向 +
+六类列表视图静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 exe 形态 --selftest 随 B7 引入。
 """
 import shutil
@@ -213,6 +214,58 @@ def mutate_cs6_shell(dst):
                  encoding="utf-8")
 
 
+# ---- B4 负向对照 ----
+def negative_list_specs(label, mutate):
+    """临时副本里破坏一条列表视图静态契约，check-list-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_list_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-list-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_filter_rules(dst):
+    (dst / "src" / "QuadLite.Core" / "FilterRules.cs").unlink()
+
+
+def mutate_drop_filter_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("filter-*", TestFilter);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_break_batch_size(dst):
+    p = dst / "src" / "QuadLite.Core" / "EnumBatchRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("DefaultBatchSize = 4096", "DefaultBatchSize = 128")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_delete_list_state(dst):
+    (dst / "src" / "QuadLite.App" / "ListViewState.cs").unlink()
+
+
+def mutate_list_app_io(dst):
+    p = dst / "src" / "QuadLite.App" / "ListViewState.cs"
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def mutate_cs6_list(dst):
+    p = dst / "src" / "QuadLite.App" / "ListViewCommands.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class Bad2 { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -231,13 +284,14 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3)")
+    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
     expect_green("check-core-specs", script("check_core_specs.py"))
     expect_green("check-fs-specs", script("check_fs_specs.py"))
     expect_green("check-shell-specs", script("check_shell_specs.py"))
+    expect_green("check-list-specs", script("check_list_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -272,6 +326,12 @@ def main():
     negative_shell_specs("missing-app-skeleton", mutate_delete_app_skeleton)
     negative_shell_specs("app-io", mutate_app_io)
     negative_shell_specs("cs6-syntax", mutate_cs6_shell)
+    negative_list_specs("missing-filter", mutate_delete_filter_rules)
+    negative_list_specs("missing-b4-group", mutate_drop_filter_group)
+    negative_list_specs("batch-size-drift", mutate_break_batch_size)
+    negative_list_specs("missing-list-state", mutate_delete_list_state)
+    negative_list_specs("list-app-io", mutate_list_app_io)
+    negative_list_specs("cs6-syntax", mutate_cs6_list)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

@@ -68,6 +68,25 @@ B2 的 4 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 
 B3 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担。本机安全策略禁止执行系统 C# 编译器，故本机只记静态那一半。
 
+## B4 登记
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| B4 列表规则类型齐备 | 临时副本删掉 `FilterRules.cs` | `check-list-specs`、`check-core-specs` |
+| B4 门卡组注册齐备 | 临时副本删掉 `Run("filter-*", TestFilter);` | `check-list-specs`、`check-core-specs` |
+| 目录枚举默认 4096 / 批 | 临时副本把 `DefaultBatchSize` 改成 128 | `check-list-specs` |
+| App 列表视图状态内核齐备 | 临时副本删掉 `ListViewState.cs` | `check-list-specs` |
+| L4 列表状态内核零 I/O、不引用测试替身 | 临时副本在 `ListViewState.cs` 注入 `using System.IO;` | `check-list-specs`、`check-boundaries` B-02 |
+| C# 5 语法子集 | 临时副本注入字符串插值 | `check-list-specs`、`check-core-specs` |
+| 四列 / 大小五档 / 同列或跨列与 / 导航清 F5 留 / 不写会话 / 四来源读显示行集 | 改实现或断言后，CI 编译运行 C# runner | `csharp-runner` `filter-*` |
+| 组头不进显示行集、图标档不渲染组头、组内不二次排序 | 改规则或断言 | `csharp-runner` `group-*` / `view-*` |
+| 四开关 16 组合与三态过滤、不回顶、缩略图开关不重枚举 | 改规则或断言 | `csharp-runner` `toggle-*` |
+| 点选 / Ctrl / Shift 多选、框选仅图标档、Ctrl+A 排除三类 | 改规则或断言 | `csharp-runner` `select-*` |
+| 四类命中单一来源、状态栏按筛后行计数、13 键快捷键表 | 改规则或断言 | `csharp-runner` `hit-*` / `status-*` / `keys-*` |
+| 规格与实现一致（规格 v1.2 与 B4 判据声明不得擅改） | 改动 `design-v2.md` §8.1 的 B4 行或版本状态 | `check-list-specs` |
+
+B4 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担。本机安全策略禁止执行系统 C# 编译器，故本机只记静态那一半。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -76,7 +95,7 @@ B3 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 运行期零写入三段取证（H3）、高 DPI 四档（H1）、兼容矩阵（H2） | 发布线 H1–H6 | 未验证 |
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
-| 视图筛选与显示开关 | B4 单测 | 未验证 |
+| 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | 待 CI 首次实跑（本机未验证） |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
@@ -85,6 +104,9 @@ B3 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 危险判级真实绑定 | 外壳注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
 | Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
 | 真实 WPF 窗口 / XAML / 消息循环 / 事件绑定 | B3 后续批次 | **未实现 / 未验证**（B3 只交状态内核与可编译骨架） |
+| 真实 WPF 列表控件 / 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 / 图标与缩略图渲染 | B4 后续批次 / B6 | **未实现 / 未验证**（B4 只交规则层与可编译状态内核） |
+| 真实目录枚举（`FindFirstFileExW` + `LARGE_FETCH`、4096 / 批） | Fs 层后续批次 | **未实现 / 未验证**（`DirSource` 当前为 128 / 批，见 `ADR-v2-006` D6） |
+| 名称拼音分桶 / 修改日期月历 / 类型动态枚举 | B4 后续批次 | **未实现 / 未验证**（只落地桶键组合逻辑） |
 | 可编辑地址栏、标签拖动 UI、此电脑层真实枚举与盘符取图、会话原子写与备份 | B3 后续批次 / Fs 层 | **未实现 / 未验证** |
 | WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B7 完成出包 | 未验证（CI 不含 WPF 应用构建） |
 
@@ -97,6 +119,8 @@ B1 起 CI 增加 `check-core-specs` 与 `csharp-runner` 两步：后者在 Windo
 B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + Fs 编成单个 library，**只编译、不运行**，因此只证明结构与语法可编译，不证明任何系统能力可用；`csharp-runner` 扩到 21 组（含 7 组 B2 编排）。**首次实跑已通过**：run `42035381476`（head `1066b0d`），八个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 21 组 `ok=True`、`verdict: GREEN`，`csharp-fs-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
 B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Core + App 外壳状态内核编成单个 library，**只编译、不运行**，且不引用呈现框架程序集；`csharp-runner` 扩到 27 组（含 6 组 B3 外壳）。真实 WPF 窗口 / XAML / 消息循环不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42040769639`（head `378432a`），十个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 27 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。首个功能提交 `15d0aa9` 的 run `42040381217` 因 `bookmark-*` 断言期望值笔误在 `csharp-runner` 判红，修正提交 `378432a` 后复跑全绿；该次红不作为通过证据。逐批结论见 `docs/run-ledger.md`。
+
+B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 11 个 Core 与 2 个 App 文件，无需新增编译步骤）：`csharp-runner` 扩到 33 组（含 6 组 B4 列表），`csharp-app-compile` 编译 4 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集。真实 WPF 列表控件 / 虚拟化面板 / 拖放不在 CI 内，相关项维持「未验证」。首次实跑结论待回填，见 `docs/run-ledger.md` B4 行。
 
 ## 写入例外清单
 

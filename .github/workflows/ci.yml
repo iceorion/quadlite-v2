@@ -1,13 +1,13 @@
 name: gates
 
-# B0/B1/B2/B3 闸门：需求追踪 + 静态边界 + 静态契约（Core / Fs / 外壳）+ 检查链自测 +
-# 合规 + C# L0/B2/B3 runner + Fs 适配器编译 + App 外壳状态内核编译。
+# B0/B1/B2/B3/B4 闸门：需求追踪 + 静态边界 + 静态契约（Core / Fs / 外壳 / 列表）+ 检查链自测 +
+# 合规 + C# L0/B2/B3/B4 runner + Fs 适配器编译 + App 外壳与列表状态内核编译。
 # C# 源码以 C# 5 语法子集编译（/langversion:5、/codepage:65001），只引用系统程序集。
 # Fs 层编译成 library 但不运行：真实 IFileOperation / 系统剪贴板 / watcher 行为未验证。
-# B3 的 App 层只编译外壳状态内核（零 I/O、不引用呈现框架程序集）；真实 WPF 窗口 / XAML /
-# 消息循环 / 系统原生菜单未接入，MSBuild 的 WPF 应用构建与 build.ps1 -SingleFile 仍未验证；
-# exe 形态 --selftest 随 B7 接入。
-# 详见 docs/adr/ADR-v2-001.md、ADR-v2-002.md、ADR-v2-004.md、ADR-v2-005.md。
+# B3/B4 的 App 层只编译状态内核（零 I/O、不引用呈现框架程序集）；真实 WPF 窗口 / XAML /
+# 消息循环 / 列表控件 / 拖放 / 系统原生菜单未接入，MSBuild 的 WPF 应用构建与 build.ps1 -SingleFile
+# 仍未验证；exe 形态 --selftest 随 B7 接入。
+# 详见 docs/adr/ADR-v2-001.md、ADR-v2-002.md、ADR-v2-004.md、ADR-v2-005.md、ADR-v2-006.md。
 on:
   push:
     branches: [main]
@@ -32,11 +32,13 @@ jobs:
         run: python tools/check_fs_specs.py
       - name: check-shell-specs
         run: python tools/check_shell_specs.py
+      - name: check-list-specs
+        run: python tools/check_list_specs.py
       - name: run-tests (includes negative controls)
         run: python tools/run_tests.py
       - name: open-source compliance
         run: python tools/check_open_source.py
-      - name: csharp-runner (L0 + B2 + B3 unit tests, C# 5 / net48)
+      - name: csharp-runner (L0 + B2 + B3 + B4 unit tests, C# 5 / net48)
         shell: pwsh
         run: |
           $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
@@ -59,15 +61,15 @@ jobs:
           & $compiler /nologo /target:library /langversion:5 /codepage:65001 /r:System.dll /r:System.Core.dll /out:$out $core $fs
           if ($LASTEXITCODE -ne 0) { Write-Host "Fs library compile failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
           Write-Host 'Fs adapters compile; runtime behaviour is NOT exercised here.'
-      - name: csharp-app-compile (B3 shell state, library only)
+      - name: csharp-app-compile (B3 shell + B4 list state, library only)
         shell: pwsh
         run: |
           $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
           if (-not (Test-Path -LiteralPath $compiler)) { Write-Host 'C# compiler not found'; exit 1 }
           $core = @(Get-ChildItem -Path 'src/QuadLite.Core/*.cs' | ForEach-Object { $_.FullName })
           $app = @(Get-ChildItem -Path 'src/QuadLite.App/*.cs' | ForEach-Object { $_.FullName })
-          if ($app.Count -eq 0) { Write-Host 'App shell skeleton missing'; exit 1 }
+          if ($app.Count -lt 4) { Write-Host 'App state kernel missing (expect 4 .cs)'; exit 1 }
           $out = Join-Path $env:RUNNER_TEMP 'QuadLite.App.dll'
           & $compiler /nologo /target:library /langversion:5 /codepage:65001 /r:System.dll /r:System.Core.dll /out:$out $core $app
           if ($LASTEXITCODE -ne 0) { Write-Host "App library compile failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
-          Write-Host 'App shell state compiles as a library; real WPF window/XAML is NOT built here.'
+          Write-Host 'App shell + list state compiles as a library; real WPF window/XAML/list controls are NOT built here.'

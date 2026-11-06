@@ -13,7 +13,7 @@
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
 | 代码 | `src/QuadLite.Core/` 43 个零 I/O 类型（B1 的 13 个 L0 + B2 的 10 个编排 / 端口 + B3 的 9 个布局 / 导航 / 会话 + B4 的 11 个列表视图规则）；`src/QuadLite.Fs/` 5 个适配器；`src/QuadLite.App/` 4 个状态类型（无窗口 / XAML） |
-| C# runner | 33 组门卡（14 组 L0 + 7 组 B2 + 6 组 B3 + 6 组 B4），CI 上以 C# 5 编译实跑；B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`）与 B3（run `42040769639` / `378432a`，十步全 `success`）首次实跑均已通过，B4 首次实跑待回填，逐批结论见 `docs/run-ledger.md` |
+| C# runner | 33 组门卡（14 组 L0 + 7 组 B2 + 6 组 B3 + 6 组 B4），CI 上以 C# 5 编译实跑；B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`）、B3（run `42040769639` / `378432a`，十步全 `success`）与 B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）首次实跑均已通过，逐批结论见 `docs/run-ledger.md` |
 | 布局方案 | 规格 v1.2 的 1/2/3/4 四档；用户提出的自定义分割线拓扑仍在讨论中、未拍板，规格未改（见 `docs/adr/ADR-v2-005.md`） |
 | 文件操作能力 | **尚不能搬运文件**：真实 `IFileOperation` 调用点隔离在注入端口，成熟 COM 绑定待接入，标「未实现 / 未验证」，见 `docs/adr/ADR-v2-004.md` |
 | 可下载版本 | 无；真实 WPF 窗口 / XAML / 消息循环未实现，应用构建与单文件出包尚未实跑（未验证）；CI 编译并运行单测 runner、另把 Fs 适配器与 App 外壳状态内核分别编译成 library（不运行） |
@@ -29,7 +29,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
 | `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs`，共八个）+ 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表）/ 检查链自测 / 开源合规 / C# runner / Fs 与 App 库编译；B0、B1、B2、B3（run `42040769639`）首次实跑均已通过，B4 首次实跑待回填 |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表）/ 检查链自测 / 开源合规 / C# runner / Fs 与 App 库编译；B0、B1、B2、B3（run `42040769639`）、B4（run `42224901915`）首次实跑均已通过 |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -109,7 +109,7 @@ python tools/check_list_specs.py
 python tools/run_tests.py
 ```
 
-`check_list_specs.py` 核对 B4 类型齐备、App 状态内核齐备、门卡组注册、规格关键常量（4096 / 四列 / 五档 / 13 键）与不变量、规格与实现一致、App 层零 I/O 与 C# 5 语法；`run_tests.py` 含 6 类 B4 负向对照，逐条实测变红。C# runner 扩到 33 组（6 个新增组 + 5 个既有组补强断言），CI 首次实跑待回填。布局决策仍在讨论中、未拍板；B4 只关心单窗格内的行集与交互，不受窗格数量与落位模型影响（见 `ADR-v2-005` D7）。
+`check_list_specs.py` 核对 B4 类型齐备、App 状态内核齐备、门卡组注册、规格关键常量（4096 / 四列 / 五档 / 13 键）与不变量、规格与实现一致、App 层零 I/O 与 C# 5 语法；`run_tests.py` 含 6 类 B4 负向对照，逐条实测变红。C# runner 扩到 33 组（6 个新增组 + 5 个既有组补强断言），CI run `42224901915`（head `8ed8b5b`）十一步全 `success`：33 组 `ok=True`、`verdict: GREEN`，`check-list-specs` 与 `csharp-app-compile` 均 `success`。布局决策仍在讨论中、未拍板；B4 只关心单窗格内的行集与交互，不受窗格数量与落位模型影响（见 `ADR-v2-005` D7）。
 
 ## 首版设计目标（摘要）
 

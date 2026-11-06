@@ -95,7 +95,7 @@ B4 的 6 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 运行期零写入三段取证（H3）、高 DPI 四档（H1）、兼容矩阵（H2） | 发布线 H1–H6 | 未验证 |
 | 危险判级矩阵逐格、路径规范化、SafeWalk 四道边界 | B1 C# runner（CI 实测） | 见 `docs/run-ledger.md` B1 行；本机未验证 |
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
-| 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | 待 CI 首次实跑（本机未验证） |
+| 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
 | 产品程序集 `GetCommandString` 命中 0 次 | B5 门卡实测 | 未验证 |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
@@ -120,7 +120,7 @@ B2 起 CI 再增加 `check-fs-specs` 与 `csharp-fs-compile`：后者把 Core + 
 
 B3 起 CI 再增加 `check-shell-specs` 与 `csharp-app-compile`：后者把 Core + App 外壳状态内核编成单个 library，**只编译、不运行**，且不引用呈现框架程序集；`csharp-runner` 扩到 27 组（含 6 组 B3 外壳）。真实 WPF 窗口 / XAML / 消息循环不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42040769639`（head `378432a`），十个门卡步骤逐项 `success`，其中 `csharp-runner` 退出码 0 ⇒ 27 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。首个功能提交 `15d0aa9` 的 run `42040381217` 因 `bookmark-*` 断言期望值笔误在 `csharp-runner` 判红，修正提交 `378432a` 后复跑全绿；该次红不作为通过证据。逐批结论见 `docs/run-ledger.md`。
 
-B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 11 个 Core 与 2 个 App 文件，无需新增编译步骤）：`csharp-runner` 扩到 33 组（含 6 组 B4 列表），`csharp-app-compile` 编译 4 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集。真实 WPF 列表控件 / 虚拟化面板 / 拖放不在 CI 内，相关项维持「未验证」。首次实跑结论待回填，见 `docs/run-ledger.md` B4 行。
+B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 11 个 Core 与 2 个 App 文件，无需新增编译步骤）：`csharp-runner` 扩到 33 组（含 6 组 B4 列表），`csharp-app-compile` 编译 4 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集。真实 WPF 列表控件 / 虚拟化面板 / 拖放不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42224901915`（head `8ed8b5b`），十一个门卡 / 编译步骤逐项 `success`，其中 `check-list-specs` `success`、`csharp-runner` 退出码 0 ⇒ 33 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

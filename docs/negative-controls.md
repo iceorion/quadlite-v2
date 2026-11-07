@@ -150,11 +150,11 @@ B6 的 7 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 名称拼音分桶 / 修改日期月历 / 类型动态枚举 | B4 后续批次 | **未实现 / 未验证**（只落地桶键组合逻辑） |
 | 可编辑地址栏、标签拖动 UI、此电脑层真实枚举与盘符取图、会话原子写与备份 | B3 后续批次 / Fs 层 | **未实现 / 未验证** |
 | WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B7 完成出包 | 未验证（CI 不含 WPF 应用构建） |
-| 图标缩略图规则层（`icon-*` / `thumb-*` / `thumb-nowrite` 八组） | B6 C# runner（CI 编译实跑） | 待 CI 实跑；本机静态门卡实测绿，见 `docs/run-ledger.md` B6 行 |
+| 图标缩略图规则层（`icon-*` / `thumb-*` / `thumb-nowrite` 八组） | B6 C# runner（CI 编译实跑） | CI 实测通过：run `42343839222` / head `c0529da`，`csharp-runner` 步骤 `success` ⇒ 退出码 0 ⇒ 51 组 `ok=True`；本机静态门卡实测绿，见 `docs/run-ledger.md` B6 行 |
 | 真实 WIC 解码、`IShellItemImageFactory` 绑定、后台 worker、LRU 介质、视频 8 秒看门狗 | B6 后续批次 / 发布线 | **未实现 / 未验证**（只交纯函数判据，见 `ADR-v2-008` D6） |
 | 盘符图标逐像素比对、EXIF 像素级变换、图标与缩略图渲染控件 | B6 后续批次 | **未实现 / 未验证** |
 | 运行期零写入三段取证（注册表 / 应用目录 / 系统缓存） | 发布线 H3 | 未验证（源码只给出三个观察区与允许条件） |
-| App 图标缩略图状态内核库编译 | CI `csharp-app-compile`（8 个 .cs） | 待 CI 实跑；本机未验证 |
+| App 图标缩略图状态内核库编译 | CI `csharp-app-compile`（8 个 .cs） | CI 实测通过：run `42343839222` 该步骤 `success`；只编译、不运行；本机不执行 C# 编译器 |
 
 ## 远端验证（CI）
 
@@ -170,7 +170,7 @@ B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile
 
 B5 起 CI 再增加 `check-menu-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core、2 个 App 与 1 个 Tests 文件，无需新增编译步骤）：`csharp-runner` 扩到 43 组（含 10 组 B5 菜单），`csharp-app-compile` 编译 6 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；§10「产品程序集 verb 查询 0 次」由 `check-menu-specs` 与 `check-open-source` 双门卡本机实测。真实原生菜单 COM 宿主 / 崩溃哨兵磁盘标记 / 自绘兜底 UI 不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42232312609`（head `aa63769`），十二个门卡 / 编译步骤逐项 `success`，其中 `check-menu-specs` `success`、`csharp-runner` 退出码 0 ⇒ 43 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
-B6 起 CI 再增加 `check-icon-specs`：`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core 与 2 个 App 文件，无需新增编译步骤；`csharp-runner` 扩到 51 组（含 8 组 B6 图标缩略图），`csharp-app-compile` 编译 8 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 55 组 / 45 条负向对照，本机实测绿，「唯一写入例外」由 `check-boundaries` INV-06 与 `check-icon-specs` 双门卡核对。真实 WIC 解码、系统图像工厂、图标缩略图渲染与三段取证不在 CI 内，相关项维持「未验证」。**B6 的 `check-icon-specs`、51 组 C# runner 与 8 个 App 状态内核库编译待 CI 实跑**，本机不执行 C# 编译器，不把静态绿写成算法跑通。逐批结论见 `docs/run-ledger.md`。
+B6 起 CI 再增加 `check-icon-specs`：`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core 与 2 个 App 文件，无需新增编译步骤；`csharp-runner` 扩到 51 组（含 8 组 B6 图标缩略图），`csharp-app-compile` 编译 8 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 55 组 / 45 条负向对照，本机实测绿，「唯一写入例外」由 `check-boundaries` INV-06 与 `check-icon-specs` 双门卡核对。真实 WIC 解码、系统图像工厂、图标缩略图渲染与三段取证不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42343839222`（head `c0529da`，含 B6 功能提交 `8d90b7a` 与账本回填提交 `c0529da`），十三个门卡 / 编译步骤逐项 `success`，其中 `check-icon-specs` `success`、`csharp-runner` 退出码 0 ⇒ 51 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile`（8 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

@@ -13,7 +13,7 @@
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
 | 代码 | `src/QuadLite.Core/` 59 个零 I/O 类型（B1 的 13 个 L0 + B2 的 10 个编排 / 端口 + B3 的 9 个布局 / 导航 / 会话 + B4 的 11 个列表视图规则 + B5 的 8 个菜单规则 + B6 的 8 个图标缩略图规则）；`src/QuadLite.Fs/` 5 个适配器；`src/QuadLite.App/` 8 个状态类型（无窗口 / XAML） |
-| C# runner | 51 组门卡（14 组 L0 + 7 组 B2 + 6 组 B3 + 6 组 B4 + 10 组 B5 + 8 组 B6），CI 上以 C# 5 编译实跑；B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`）、B3（run `42040769639` / `378432a`，十步全 `success`）与 B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）首次实跑均已通过，B5（run `42232312609` / `aa63769`，十二步全 `success`）亦已通过；**B6 的 51 组 runner 与 App 库编译待 CI 实跑**，本机只跑 Python 静态门卡，逐批结论见 `docs/run-ledger.md` |
+| C# runner | 51 组门卡（14 组 L0 + 7 组 B2 + 6 组 B3 + 6 组 B4 + 10 组 B5 + 8 组 B6），CI 上以 C# 5 编译实跑；B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`）、B3（run `42040769639` / `378432a`，十步全 `success`）与 B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）首次实跑均已通过，B5（run `42232312609` / `aa63769`，十二步全 `success`）与 B6（run `42343839222` / `c0529da`，十三步全 `success`）均已通过，B6 含 51 组 runner、8 个 App 状态内核库编译与 `check-icon-specs` 首次实跑；本机只跑 Python 静态门卡，逐批结论见 `docs/run-ledger.md` |
 | 布局方案 | 规格 v1.2 的 1/2/3/4 四档；用户已拍板**保持四档**，自定义二叉分割树方案不采纳，规格一字未改（见 `docs/adr/ADR-v2-008.md`；撤回的改版见 `ADR-v2-005.md`） |
 | 文件操作能力 | **尚不能搬运文件**：真实 `IFileOperation` 调用点隔离在注入端口，成熟 COM 绑定待接入，标「未实现 / 未验证」，见 `docs/adr/ADR-v2-004.md` |
 | 可下载版本 | 无；真实 WPF 窗口 / XAML / 消息循环、系统原生菜单 COM 宿主与图标缩略图渲染未实现，应用构建与单文件出包尚未实跑（未验证）；CI 编译并运行单测 runner、另把 Fs 适配器与 App 状态内核分别编译成 library（不运行） |
@@ -29,7 +29,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
 | `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs` + B5 `check-menu-specs` + B6 `check-icon-specs`，共十个）+ 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图）/ 检查链自测 / 开源合规 / C# runner / Fs 与 App 库编译；B0、B1、B2、B3（run `42040769639`）、B4（run `42224901915`）、B5（run `42232312609`）首次实跑均已通过；B6 的 `check-icon-specs` 与 51 组 runner 待 CI 实跑 |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图）/ 检查链自测 / 开源合规 / C# runner / Fs 与 App 库编译；B0、B1、B2、B3（run `42040769639`）、B4（run `42224901915`）、B5（run `42232312609`）首次实跑均已通过；B6（run `42343839222` / head `c0529da`，十三步全 `success`）首次实跑亦已通过，`check-icon-specs`、51 组 runner 与 8 文件 App 库编译均 `success` |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -47,7 +47,7 @@ python tools/run_tests.py
 python tools/check_open_source.py
 ```
 
-`run_tests.py` 跑正样本、45 条负向对照（故意破坏后门卡必须变红）与合规扫描，共 55 组，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行，B2 起再加 `check-fs-specs` 与 Fs 适配器库编译，B3 起再加 `check-shell-specs` 与 App 外壳状态内核库编译，B4 起再加 `check-list-specs`，B5 起再加 `check-menu-specs`，B6 起再加 `check-icon-specs`（本机实测绿，CI 待实跑）。真实 WPF 窗口、列表控件、拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、应用构建、单文件出包与 exe 形态 `--selftest` 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-002.md`、`ADR-v2-004.md`、`ADR-v2-005.md`、`ADR-v2-006.md`、`ADR-v2-007.md` 与 `ADR-v2-008.md`。
+`run_tests.py` 跑正样本、45 条负向对照（故意破坏后门卡必须变红）与合规扫描，共 55 组，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行，B2 起再加 `check-fs-specs` 与 Fs 适配器库编译，B3 起再加 `check-shell-specs` 与 App 外壳状态内核库编译，B4 起再加 `check-list-specs`，B5 起再加 `check-menu-specs`，B6 起再加 `check-icon-specs`（本机与 CI 均实测绿，run `42343839222` / head `c0529da`）。真实 WPF 窗口、列表控件、拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、应用构建、单文件出包与 exe 形态 `--selftest` 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-002.md`、`ADR-v2-004.md`、`ADR-v2-005.md`、`ADR-v2-006.md`、`ADR-v2-007.md` 与 `ADR-v2-008.md`。
 
 ## B1 L0 纯函数层
 
@@ -149,7 +149,7 @@ python tools/check_icon_specs.py
 python tools/run_tests.py
 ```
 
-`check_icon_specs.py` 核对 B6 Core 类型齐备、App 状态内核齐备、门卡组注册、26 项规格常量与不变量、WIC 14 种 / 视频 15 种数量、唯一写入例外（源码判据 + 文档清单各一条）、App 分层边界、产品程序集零手写 COM、规格仍 v1.2、C# 5 语法；`run_tests.py` 含 7 类 B6 负向对照，逐条实测变红。C# runner 扩到 51 组（新增 8 组，均落在附录 C 已登记的三个门卡组内），`run_tests.py` 扩到 55 组 / 45 条负向对照，本机实测绿；**51 组 runner、8 个 App 状态内核的库编译与 `check-icon-specs` 的 CI 首次实跑待推进**，本机不执行 C# 编译器，该层如实标「未验证（待 CI 实跑）」。
+`check_icon_specs.py` 核对 B6 Core 类型齐备、App 状态内核齐备、门卡组注册、26 项规格常量与不变量、WIC 14 种 / 视频 15 种数量、唯一写入例外（源码判据 + 文档清单各一条）、App 分层边界、产品程序集零手写 COM、规格仍 v1.2、C# 5 语法；`run_tests.py` 含 7 类 B6 负向对照，逐条实测变红。C# runner 扩到 51 组（新增 8 组，均落在附录 C 已登记的三个门卡组内），`run_tests.py` 扩到 55 组 / 45 条负向对照，本机实测绿；**CI 首次实跑已通过**：run `42343839222`（head `c0529da`），`check-icon-specs`、51 组 `csharp-runner` 与 8 个 App 状态内核库编译三步均 `success`，`csharp-runner` 退出码 0 ⇒ 51 组 `ok=True`、`verdict: GREEN`。本机不执行 C# 编译器，该层以 CI 远端实测为准；日志端点匿名 403，未读取日志原文。
 
 ## 首版设计目标（摘要）
 

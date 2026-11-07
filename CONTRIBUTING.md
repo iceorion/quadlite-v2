@@ -35,12 +35,12 @@
 | `python tools/check_icon_specs.py` | B6 静态契约：图标缩略图规则类型齐备 / App 状态内核 / 门卡组注册 / 26 项规格常量与不变量 / WIC 14 种与视频 15 种 / 唯一写入例外 / App 零 I/O / 规格与实现一致 / C# 5 语法 | `verdict: GREEN`；任一违反即 `exit 1` |
 | `python tools/run_tests.py` | 零依赖 runner：55 组（正样本 + 45 条负向对照 + 合规扫描） | 每组一行 `ok=True/False`，末行 `verdict:`；退出码 = 失败数 |
 | `python tools/check_open_source.py` | §10 开源合规全文扫描 | `verdict: GREEN`；命中即打回 |
-| C# runner（CI 编译） | 51 组门卡（14 组 L0 + 7 组 B2 编排 + 6 组 B3 外壳 + 6 组 B4 列表 + 10 组 B5 菜单 + 8 组 B6 图标缩略图），系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（待 CI 实跑）」** |
+| C# runner（CI 编译） | 51 组门卡（14 组 L0 + 7 组 B2 编排 + 6 组 B3 外壳 + 6 组 B4 列表 + 10 组 B5 菜单 + 8 组 B6 图标缩略图），系统 .NET Framework 编译器 `/langversion:5` | 每组一行 `ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**本机未执行编译器，标「未验证（CI 远端实测）」**；B6 首次实跑已通过（run `42343839222` / `c0529da`，51 组） |
 | Fs 库编译（CI） | Core + Fs 编成 library，不运行 | 编译成功即过；**运行期行为未验证** |
 | App 库编译（CI） | Core + App 外壳 / 列表视图 / 菜单 / 图标缩略图状态内核（8 个 .cs）编成 library，不引用呈现框架程序集、不运行 | 编译成功即过；**真实 WPF 窗口 / XAML / 消息循环 / 列表控件 / 原生菜单 COM 宿主 / 图标缩略图渲染未构建** |
 | `build.ps1 -SingleFile` | 单文件出包 | 产出 exe + `BUILD.txt`，字段齐备；**B0 未实跑（未验证）** |
 | exe 形态 `--selftest` | 无人工界面自测，跑全部门卡 | 每组一行 `组名: ok=True/False` + 末行 `verdict:`；退出码 = 红条数；**随 B7 接入（未验证）** |
-| `.github/workflows/ci.yml` | 十道 Python 门卡 + C# runner 编译运行 + Fs / App 库编译 | B0（run `42013589562` / `96a5fa4`）、B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`，八步全 `success`）、B3（run `42040769639` / `378432a`，十步全 `success`）、B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）、B5（run `42232312609` / `aa63769`，十二步全 `success`）首次实跑均已通过；B6 的 `check-icon-specs`、51 组 runner 与 8 个 App 状态内核库编译待 CI 实跑，逐批结论见 `docs/run-ledger.md`；CI 不含真实 WPF 窗口、列表控件、原生菜单 COM 宿主与图标缩略图渲染的构建、出包，那几项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
+| `.github/workflows/ci.yml` | 十道 Python 门卡 + C# runner 编译运行 + Fs / App 库编译 | B0（run `42013589562` / `96a5fa4`）、B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`，八步全 `success`）、B3（run `42040769639` / `378432a`，十步全 `success`）、B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）、B5（run `42232312609` / `aa63769`，十二步全 `success`）首次实跑均已通过；B6（run `42343839222` / `c0529da`，十三步全 `success`）首次实跑亦已通过，含 `check-icon-specs`、51 组 runner 与 8 个 App 状态内核库编译，逐批结论见 `docs/run-ledger.md`；CI 不含真实 WPF 窗口、列表控件、原生菜单 COM 宿主与图标缩略图渲染的构建、出包，那几项仍为「未验证」；毫秒 / 时序门卡只报数不判定 |
 
 门卡必须「改坏必红」：故意破坏对应不变量时门卡要变红，登记表见 `docs/negative-controls.md`。负向对照按**不变量**覆盖，不按门卡逐条配。夹具在 `tools/fixtures/boundaries/`，`ok/` 保持绿、`bad/` 每条触发指定规则。
 

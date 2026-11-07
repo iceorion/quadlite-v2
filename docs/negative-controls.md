@@ -246,7 +246,7 @@ B7 起 CI 再增加 `check-selftest-specs`；`csharp-runner` 的编译命令自�
 
 B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 10 组 B8 发布线），报告 120 → 130 行，`csharp-app-compile` 编译 12 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 75 组 / 63 条负向对照，本机实测绿。§8.3 依赖链七节点、DPI 四档与降级链由 `check-release-specs` **解析规格原文逐项比对**，改序或改数值即判红；C4 零误报门槛与 M3 证据闭环另由第 6 / 7 项核对。H1–H6 真实取证、C4 带杀软 VM、OV 签名与产品 exe 出包都不在 CI 内，相关项维持「未验证」，M3 不成立。**首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通或可发布。逐批结论见 `docs/run-ledger.md`。
 
-R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 扩到 89 组 / 76 条负向对照。CI run 号与十八步结论在 push 后回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定、列表控件、原生菜单、图标渲染与 H1–H6 取证一律维持「未验证」。
+R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 扩到 89 组 / 76 条负向对照。**首次实跑已通过**：run `42376298215`（head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 均 `success`，结论已回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定、列表控件、原生菜单、图标渲染与 H1–H6 取证一律维持「未验证」。
 
 ## 写入例外清单
 

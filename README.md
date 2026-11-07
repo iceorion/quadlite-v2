@@ -29,7 +29,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
 | `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs` + B5 `check-menu-specs` + B6 `check-icon-specs` + B7 `check-selftest-specs` + B8 `check-release-specs` + R1 `check-realization-specs`，共十三个）+ 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success`；R1 起再加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步（真编译单 exe + 实跑产品 `--selftest`，run 号待回填） |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success`；R1 起再加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步；**首次实跑已通过**：run `42376298215`（push head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，含真实单 exe 编译与产品 `--selftest`（≥100 行 / `verdict: GREEN` / 退出码 0 / `BUILD.txt` 七字段） |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -170,7 +170,7 @@ B8 按 §8.1 / §8.3 既定范围推进，**规格一字未改**，布局沿用 
 
 C# runner 61 → **71 组**，报告 120 → **130 行**；`csharp-app-compile` 最小文件数 10 → 12。新增 `tools/check_release_specs.py`（10 项检查、38 项规格常量），其中第 5 项**解析 §8.3 原文**逐项比对依赖链七节点、DPI 四档与降级链（含顺序），不是只比一个数字；`run_tests.py` 扩到 75 组 / 63 条负向对照，10 条 B8 负向逐条实测变红，含「把 C4 判定改成无条件 `return true`」与「把 §8.3 的 `└─ H3` 改成 `└─ H2`」两类针对证据纪律和规格漂移的对照。
 
-**偏差照实登记**：§8.4 的 M3 判据是「H1–H6 逐项有证据；C4 缺位显式写『未做』」，而本批交付的是发布线的**可判定契约**，六阶段真实取证、C4 带杀软 VM、OV 签名与发布记录一项都没有。`ReleaseState.CurrentM3Verdict()` 明确返回 `EvidenceMissing`、`IsPublishable() == false`——**M3 不成立**，不把静态门卡全绿写成可发布。真实产品 exe 与 WPF 应用仍未接入，详见 ADR-010 D6。**CI 首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行。本机不执行 C# 编译器，该层以 CI 远端实测为准；日志端点匿名 403，未读取日志原文。
+**偏差照实登记**：§8.4 的 M3 判据是「H1–H6 逐项有证据；C4 缺位显式写『未做』」，而本批交付的是发布线的**可判定契约**，六阶段真实取证、C4 带杀软 VM、OV 签名与发布记录一项都没有。`ReleaseState.CurrentM3Verdict()` 明确返回 `EvidenceMissing`、`IsPublishable() == false`——**M3 不成立**，不把静态门卡全绿写成可发布。B8 时点真实产品 exe 与 WPF 应用仍未接入，详见 ADR-010 D6（R1 已补上最小宿主，见下节）。**CI 首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行。本机不执行 C# 编译器，该层以 CI 远端实测为准；日志端点匿名 403，未读取日志原文。
 
 ## R1 真实实现第一批（规格外实现批次）
 
@@ -184,6 +184,8 @@ B0–B8 全部是规则层与状态内核；用户拍板「开始接真实实现
 | 门卡与负向对照 | `tools/check_realization_specs.py`；`run_tests.py` 扩到 89 组 / 76 条负向（13 条 R1 对照逐条实测变红） |
 
 **偏差照实登记**：R1 交付的是「能编译、能启动、能自测的真实 exe 骨架」，不是 MVP。窗口没有目录枚举与列表控件，不能浏览、不能搬运、不能弹系统原生菜单、不能渲染图标；`IShellTransport` 仍无真实实现，单实例只落地 Mutex 第一段；`--shot` / `--bench` / `--dumpmenu` 诊断装置只输出「未实现 / 未验证」；MSBuild 出包路径、真实 shell 行为、H1–H6 与 C4 全部未验证。本机不执行 C# 编译器，真实编译与 `--selftest` 结论以 CI 远端实测为准。`ReleaseState.IsPublishable() == false`，**M1 / M2 / M3 均不成立**，完整偏差见 `docs/adr/ADR-v2-011.md`。
+
+**CI 首次实跑已通过**：run `42376298215`（push head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 三步全绿 ⇒ 真实单 exe 编译成功、`BUILD.txt` 七字段齐、产品 `--selftest` 报告 ≥100 行且 `verdict: GREEN`、退出码 0。本机不执行 C# 编译器，该结论只记 CI 远端实测；日志端点未读取原文。
 
 后续顺序：**R2** 接真实 `IFileOperation` 托管 COM 绑定与 Fs transport（同时把 B2/B5/B6 门卡中「产品程序集零手写 COM」修订为分层口径）；**R3 起**接原生菜单宿主、图标渲染与浏览 / 搬运 UI。顺序较上一轮口头提议调整为先做载体，理由见 ADR-011 D2。
 

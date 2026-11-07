@@ -241,11 +241,11 @@ def main():
 
     # 6. --selftest 报告形态：明细行 + 组行 + 末两行，合计 ≥100
     report_bad = []
-    if len(groups) != 61:
-        report_bad.append("组数 %d（应为 61）" % len(groups))
+    if len(groups) != 71:
+        report_bad.append("组数 %d（应为 71）" % len(groups))
     if "SelftestState.DetailLines()" not in ptext or "Console.WriteLine(detail[i])" not in ptext:
         report_bad.append("runner 未输出门卡总表明细行")
-    if not re.search(r"new\s+SelftestState\(\s*61\s*,\s*failures\s*\)", ptext):
+    if not re.search(r"new\s+SelftestState\(\s*71\s*,\s*failures\s*\)", ptext):
         report_bad.append("runner 未用状态内核汇总组数")
     if "report.VerdictLine()" not in ptext or "report.ExitCode()" not in ptext:
         report_bad.append("runner 末行 verdict / 退出码未委托状态内核")

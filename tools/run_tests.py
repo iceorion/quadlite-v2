@@ -11,7 +11,8 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 六类列表视图静态契约负向对照；B5 起增加 check-menu-specs 正向 +
 七类系统原生菜单静态契约负向对照；B6 起增加 check-icon-specs 正向 +
 七类图标缩略图静态契约负向对照；B7 起增加 check-selftest-specs 正向 +
-八类自测 / 出包静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+八类自测 / 出包静态契约负向对照；B8 起增加 check-release-specs 正向 +
+十类发布线静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 形态 --selftest 仍未接入。
 """
 import shutil
@@ -458,6 +459,90 @@ def mutate_cs6_selftest(dst):
                  encoding="utf-8")
 
 
+# ---- B8 负向对照 ----
+def negative_release_specs(label, mutate):
+    """临时副本里破坏一条发布线静态契约，check-release-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_release_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-release-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_stage_rules(dst):
+    (dst / "src" / "QuadLite.Core" / "ReleaseStageRules.cs").unlink()
+
+
+def mutate_drop_b8_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("release-signing-and-record", TestReleaseSigningAndRecord);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_stage_count_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "ReleaseStageRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("StageCount = 6", "StageCount = 5")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_write_zone_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "WriteEvidenceRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("ZoneCount = 3", "ZoneCount = 2")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_dpi_scale_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "DpiMatrixRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("ScaleCount = 4", "ScaleCount = 3")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_c4_engine_bypass(dst):
+    p = dst / "src" / "QuadLite.Core" / "AvScanRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("return engineCount >= MinEngineCount && scanned;", "return true;")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_spec_chain_drift(dst):
+    p = dst / "design-v2.md"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("└─ H3（零写入三段取证）", "└─ H2（零写入三段取证）")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_delete_release_state(dst):
+    (dst / "src" / "QuadLite.App" / "ReleaseState.cs").unlink()
+
+
+def mutate_b8_app_io(dst):
+    p = dst / "src" / "QuadLite.App" / "ReleaseRecordState.cs"
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def mutate_cs6_release(dst):
+    p = dst / "src" / "QuadLite.App" / "ReleaseState.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class Bad6 { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -476,7 +561,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5 + B6 + B7)")
+    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5 + B6 + B7 + B8)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -487,6 +572,7 @@ def main():
     expect_green("check-menu-specs", script("check_menu_specs.py"))
     expect_green("check-icon-specs", script("check_icon_specs.py"))
     expect_green("check-selftest-specs", script("check_selftest_specs.py"))
+    expect_green("check-release-specs", script("check_release_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -549,6 +635,16 @@ def main():
     negative_selftest_specs("missing-selftest-state", mutate_delete_selftest_state)
     negative_selftest_specs("app-io", mutate_b7_app_io)
     negative_selftest_specs("cs6-syntax", mutate_cs6_selftest)
+    negative_release_specs("missing-stage-rules", mutate_delete_stage_rules)
+    negative_release_specs("missing-b8-group", mutate_drop_b8_group)
+    negative_release_specs("stage-count-drift", mutate_stage_count_drift)
+    negative_release_specs("write-zone-drift", mutate_write_zone_drift)
+    negative_release_specs("dpi-scale-drift", mutate_dpi_scale_drift)
+    negative_release_specs("c4-engine-bypass", mutate_c4_engine_bypass)
+    negative_release_specs("spec-chain-drift", mutate_spec_chain_drift)
+    negative_release_specs("missing-release-state", mutate_delete_release_state)
+    negative_release_specs("app-io", mutate_b8_app_io)
+    negative_release_specs("cs6-syntax", mutate_cs6_release)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

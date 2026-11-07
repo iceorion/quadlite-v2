@@ -84,8 +84,18 @@ namespace QuadLite.Tests
             Run("portable-budget-table", TestBudgetTable);
             Run("portable-crash-digest", TestCrashDigest);
             Run("single-instance-marker", TestSingleInstanceMarker);
+            Run("release-stage-order", TestReleaseStageOrder);
+            Run("release-degraded-path", TestReleaseDegradedPath);
+            Run("release-evidence-policy", TestReleaseEvidencePolicy);
+            Run("release-av-scan", TestReleaseAvScan);
+            Run("release-dpi-matrix", TestReleaseDpiMatrix);
+            Run("release-write-evidence", TestReleaseWriteEvidence);
+            Run("release-compat-matrix", TestReleaseCompatMatrix);
+            Run("release-crash-reading", TestReleaseCrashReading);
+            Run("release-perf-regression", TestReleasePerfRegression);
+            Run("release-signing-and-record", TestReleaseSigningAndRecord);
 
-            SelftestState report = new SelftestState(61, failures);
+            SelftestState report = new SelftestState(71, failures);
             Console.WriteLine("groups=" + report.GroupCount.ToString() +
                               ", failed=" + failures.ToString() +
                               ", lines=" + report.LineCount().ToString());
@@ -1915,6 +1925,244 @@ namespace QuadLite.Tests
             Check.False(SingleInstanceRules.ParticipatesInSingleInstance(CliMode.Shot), "shot bypasses");
             Check.True(SingleInstanceRules.DiagnosticModesBypass(), "all diagnostic modes bypass");
             Check.True(SingleInstanceRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseStageOrder()
+        {
+            Check.Equal(6, ReleaseStageRules.StageCount, "six release stages");
+            Check.Equal(7, ReleaseStageRules.NodeCount, "seven nodes including C4");
+            Check.Equal(6, ReleaseStageRules.StageIds().Length, "stage id list length");
+            string[] order = ReleaseStageRules.DependencyOrder();
+            Check.Equal(7, order.Length, "dependency chain length");
+            Check.Equal("C4", order[0], "C4 is the root");
+            Check.Equal("H1", order[1], "H1 follows C4");
+            Check.Equal("H3", order[2], "H3 follows H1 per section 8.3");
+            Check.Equal("H2", order[3], "H2 follows H3 per section 8.3");
+            Check.Equal("H6", order[6], "H6 is last");
+            Check.Equal("", ReleaseStageRules.Prerequisite("C4"), "root has no prerequisite");
+            Check.Equal("C4", ReleaseStageRules.Prerequisite("H1"), "H1 needs C4");
+            Check.Equal("H1", ReleaseStageRules.Prerequisite("H3"), "H3 needs H1");
+            Check.Equal("H3", ReleaseStageRules.Prerequisite("H2"), "H2 needs H3");
+            Check.Equal("H2", ReleaseStageRules.Prerequisite("H4"), "H4 needs H2");
+            Check.Equal(null, ReleaseStageRules.Prerequisite("unknown"), "unknown node rejected");
+            Check.False(ReleaseStageRules.CanAdvance("H1", new string[0], false), "H1 blocked without C4");
+            Check.True(ReleaseStageRules.CanAdvance("H1", new string[] { "C4" }, false), "H1 opens after C4");
+            Check.False(ReleaseStageRules.CanAdvance("unknown", new string[] { "C4" }, false), "unknown cannot advance");
+            Check.True(ReleaseStageRules.IsNode("C4"), "C4 is a node");
+            Check.False(ReleaseStageRules.IsStage("C4"), "C4 is not an H stage");
+            Check.True(ReleaseStageRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseDegradedPath()
+        {
+            string[] degraded = ReleaseStageRules.DegradedOrder();
+            Check.Equal(3, degraded.Length, "degraded chain has three stages");
+            Check.Equal("H1", degraded[0], "degraded starts at H1");
+            Check.Equal("H3", degraded[1], "degraded continues at H3");
+            Check.Equal("H2", degraded[2], "degraded ends at H2");
+            Check.Equal("", ReleaseStageRules.EffectivePrerequisite("H1", true), "degraded H1 has no C4 gate");
+            Check.Equal("H1", ReleaseStageRules.EffectivePrerequisite("H3", true), "degraded H3 needs H1");
+            Check.Equal("H3", ReleaseStageRules.EffectivePrerequisite("H2", true), "degraded H2 needs H3");
+            Check.Equal("H2", ReleaseStageRules.EffectivePrerequisite("H4", true), "H4 still needs H2");
+            Check.True(ReleaseStageRules.CanAdvance("H1", new string[0], true), "degraded H1 opens");
+            Check.False(ReleaseStageRules.CanAdvance("H2", new string[0], true), "degraded H2 still needs H3");
+            ReleaseState degradedState = new ReleaseState(true);
+            ReleaseState fullState = new ReleaseState(false);
+            Check.Equal(3, degradedState.DependencyOrder().Length, "degraded state uses short chain");
+            Check.Equal(7, fullState.DependencyOrder().Length, "full state uses complete chain");
+            Check.Equal(11, degradedState.DetailLineCount(), "seven nodes + three degraded + one C4 line");
+            Check.True(degradedState.C4DeclaredAbsent, "C4 absence carried in state");
+            Check.False(fullState.C4DeclaredAbsent, "full state does not declare C4 absent");
+            Check.Equal(ReleaseVerdict.EvidenceMissing, degradedState.CurrentM3Verdict(), "current M3 is not met");
+            Check.False(degradedState.IsPublishable(), "static gates do not make M3 publishable");
+            return true;
+        }
+
+        private static bool TestReleaseEvidencePolicy()
+        {
+            Check.Equal(4, EvidencePolicyRules.LevelCount, "four evidence levels");
+            Check.Equal(4, EvidencePolicyRules.Levels().Length, "levels reuse the ledger definition");
+            Check.False(EvidencePolicyRules.ClaimAccepted(EvidenceLevel.Unverified, true), "unverified is not a verdict");
+            Check.False(EvidencePolicyRules.ClaimAccepted(EvidenceLevel.CI, false), "no measurement is not a verdict");
+            Check.True(EvidencePolicyRules.ClaimAccepted(EvidenceLevel.Manual, true), "measured manual is a verdict");
+            Check.False(EvidencePolicyRules.IsVerdictLevel(EvidenceLevel.Unverified), "unverified excluded");
+            Check.True(EvidencePolicyRules.IsVerdictLevel(EvidenceLevel.LocalRun), "local run included");
+            Check.True(EvidencePolicyRules.NoErrorIsNotEvidence(), "no-error is not evidence");
+            Check.True(EvidencePolicyRules.InferenceIsNotVerdict(), "inference is not a verdict");
+            Check.True(EvidencePolicyRules.UnverifiedMustBeExplicit(), "unverified must be written out");
+            Check.True(EvidencePolicyRules.ForbidsStreakAsEvidence(), "streak is not evidence");
+            Check.True(EvidencePolicyRules.EveryConclusionCarriesLevel(), "every conclusion carries a level");
+            Check.True(EvidencePolicyRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseAvScan()
+        {
+            Check.Equal(1, AvScanRules.MinEngineCount, "at least one AV engine");
+            Check.False(AvScanRules.ZeroFalsePositiveClaimValid(0, true), "AVcount=0 cannot claim zero detection");
+            Check.False(AvScanRules.ZeroFalsePositiveClaimValid(2, false), "unscanned cannot claim zero detection");
+            Check.True(AvScanRules.ZeroFalsePositiveClaimValid(3, true), "engines present and scanned");
+            Check.True(AvScanRules.RequiresSecondMachineOrVm(), "needs a second machine or VM");
+            Check.True(AvScanRules.RequiresSingleVsMultiFileComparison(), "needs single vs multi file comparison");
+            Check.True(AvScanRules.UnsignedPhaseExplicitlyUnverified(), "unsigned phase stays unverified");
+            Check.True(AvScanRules.NoErrorIsNotZeroDetection(), "no-error is not zero detection");
+            Check.True(AvScanRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseDpiMatrix()
+        {
+            Check.Equal(4, DpiMatrixRules.ScaleCount, "four DPI scales");
+            Check.Equal(3, DpiMatrixRules.AssertionCount, "three geometry assertions");
+            Check.Equal("PerMonitorV2", DpiMatrixRules.ManifestMode(), "manifest mode");
+            Check.Equal(100, DpiMatrixRules.Scales()[0], "first scale");
+            Check.Equal(200, DpiMatrixRules.Scales()[3], "last scale");
+            Check.True(DpiMatrixRules.AllScalesCovered(new int[] { 100, 125, 150, 200 }), "all four covered");
+            Check.False(DpiMatrixRules.AllScalesCovered(new int[] { 100, 125, 150 }), "missing 200% is red");
+            Check.False(DpiMatrixRules.AllScalesCovered(null), "null matrix is red");
+            Check.False(DpiMatrixRules.GeometryAssertionsPass(new bool[4, 3]), "all-false matrix is red");
+            Check.False(DpiMatrixRules.GeometryAssertionsPass(new bool[4, 2]), "wrong width is red");
+            Check.False(DpiMatrixRules.GeometryAssertionsPass(null), "null assertion matrix is red");
+            bool[,] full = new bool[4, 3];
+            for (int i = 0; i < 4; i++)
+            {
+                for (int j = 0; j < 3; j++) full[i, j] = true;
+            }
+            Check.True(DpiMatrixRules.GeometryAssertionsPass(full), "complete matrix passes");
+            full[2, 1] = false;
+            Check.False(DpiMatrixRules.GeometryAssertionsPass(full), "one failed cell is red");
+            Check.True(DpiMatrixRules.RequiresScreenshotHarness(), "screenshot harness required");
+            Check.True(DpiMatrixRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseWriteEvidence()
+        {
+            Check.Equal(3, WriteEvidenceRules.ZoneCount, "three evidence zones");
+            Check.Equal(1, WriteEvidenceRules.ExceptionCount, "one write exception");
+            Check.Equal(3, WriteEvidenceRules.Zones().Length, "zone list length");
+            Check.Equal("thumbnail-cache", WriteEvidenceRules.SoleException(), "sole exception");
+            Check.True(WriteEvidenceRules.ZonesComplete(WriteEvidenceRules.Zones()), "three zones complete");
+            Check.False(WriteEvidenceRules.ZonesComplete(new string[] { "registry", "app-directory" }), "missing system-cache is red");
+            Check.False(WriteEvidenceRules.ZonesComplete(null), "null zones is red");
+            Check.True(WriteEvidenceRules.OnlyDeclaredException(new string[] { "thumbnail-cache" }), "declared exception accepted");
+            Check.False(WriteEvidenceRules.OnlyDeclaredException(new string[] { "thumbnail-cache", "extra" }), "two exceptions rejected");
+            Check.False(WriteEvidenceRules.OnlyDeclaredException(new string[] { "profile-fallback" }), "profile fallback rejected");
+            Check.True(WriteEvidenceRules.SameMotivationAsShell(), "same motivation as shell");
+            Check.True(WriteEvidenceRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseCompatMatrix()
+        {
+            Check.Equal(2, CompatibilityMatrixRules.OsCount, "two operating systems");
+            Check.Equal(4, CompatibilityMatrixRules.FsCount, "four filesystems");
+            Check.Equal(8, CompatibilityMatrixRules.CellCount, "eight cells");
+            Check.Equal(2, CompatibilityMatrixRules.OperatingSystems().Length, "os list length");
+            Check.Equal(4, CompatibilityMatrixRules.FileSystems().Length, "fs list length");
+            Check.False(CompatibilityMatrixRules.MatrixComplete(new bool[2, 4]), "empty matrix is red");
+            Check.False(CompatibilityMatrixRules.MatrixComplete(new bool[2, 3]), "wrong shape is red");
+            Check.False(CompatibilityMatrixRules.MatrixComplete(null), "null matrix is red");
+            bool[,] full = new bool[2, 4];
+            for (int i = 0; i < 2; i++)
+            {
+                for (int j = 0; j < 4; j++) full[i, j] = true;
+            }
+            Check.True(CompatibilityMatrixRules.MatrixComplete(full), "complete matrix passes");
+            full[1, 2] = false;
+            Check.False(CompatibilityMatrixRules.MatrixComplete(full), "one missing cell is red");
+            Check.True(CompatibilityMatrixRules.CellInRange(1, 3), "last cell in range");
+            Check.False(CompatibilityMatrixRules.CellInRange(2, 0), "out of range rejected");
+            Check.True(CompatibilityMatrixRules.ReadOnlyCarrierUsesMemorySession(), "read-only carrier uses memory session");
+            Check.True(CompatibilityMatrixRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseCrashReading()
+        {
+            Check.Equal(2, CrashReportReadingRules.SourceCount, "two crash report sources");
+            Check.Equal(2, CrashReportReadingRules.Sources().Length, "source list length");
+            Check.Equal("local-crash-digest", CrashReportReadingRules.Sources()[0], "local digest is primary");
+            Check.True(CrashReportReadingRules.DigestIsSanitized(), "digest sanitized");
+            Check.True(CrashReportReadingRules.DigestFieldsComplete(CrashDigestRules.Fields()), "five fields complete");
+            Check.False(CrashReportReadingRules.DigestFieldsComplete(new string[] { "a", "b" }), "short field list rejected");
+            Check.False(CrashReportReadingRules.DigestFieldsComplete(null), "null field list rejected");
+            Check.True(CrashReportReadingRules.WerOnlyAsSecondarySource(), "WER is secondary");
+            Check.True(CrashReportReadingRules.NoNetworkUpload(), "no network upload");
+            Check.True(CrashReportReadingRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleasePerfRegression()
+        {
+            Check.Equal(4, PerfRegressionRules.BudgetCount, "four budget kinds");
+            Check.Equal(7, PerfRegressionRules.ColumnCount, "seven columns");
+            Check.Equal(7, PerfRegressionRules.Columns().Length, "column list length");
+            Check.Equal(4, PerfRegressionRules.Kinds().Length, "kind list length");
+            Check.False(PerfRegressionRules.RowComplete(new string[7]), "empty row is red");
+            Check.False(PerfRegressionRules.RowComplete(new string[6]), "short row is red");
+            Check.False(PerfRegressionRules.RowComplete(null), "null row is red");
+            string[] row = new string[] { "machine", "os", "ntfs", "125", "100k", "123ms", "CI" };
+            Check.True(PerfRegressionRules.RowComplete(row), "seven filled columns pass");
+            row[5] = "unmeasured";
+            Check.False(PerfRegressionRules.RowComplete(row), "unmeasured value is red");
+            Check.True(PerfRegressionRules.RequiresMachineAndEnvironment(), "machine and environment required");
+            Check.True(PerfRegressionRules.SingleNumberIsInsufficient(), "single number insufficient");
+            Check.True(PerfRegressionRules.OnlyReportsNumbers(), "report only");
+            Check.False(PerfRegressionRules.IsCiGate(), "not a CI gate");
+            Check.True(PerfRegressionRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestReleaseSigningAndRecord()
+        {
+            Check.Equal(3, CodeSigningRules.StepCount, "sign / timestamp / verify");
+            Check.Equal(3, CodeSigningRules.Steps().Length, "step list length");
+            Check.Equal("OV", CodeSigningRules.CertificateClass, "free OV certificate");
+            Check.Equal("sha256", CodeSigningRules.DigestAlgorithm, "sha256 digest");
+            Check.Equal("Warning", CodeSigningRules.UnsignedVerdict(), "unsigned carries a warning");
+            Check.True(CodeSigningRules.FingerprintGoesToBuildManifest(), "fingerprint goes to BUILD.txt");
+            Check.True(CodeSigningRules.UnsignedMustBeRecorded(), "unsigned must be recorded");
+            Check.False(CodeSigningRules.SignatureClaimValid(false, true, true), "unsigned cannot claim success");
+            Check.False(CodeSigningRules.SignatureClaimValid(true, false, true), "unverified cannot claim success");
+            Check.False(CodeSigningRules.SignatureClaimValid(true, true, false), "missing fingerprint cannot claim success");
+            Check.True(CodeSigningRules.SignatureClaimValid(true, true, true), "complete chain accepted");
+            Check.True(CodeSigningRules.CountsMatchDeclaration(), "signing counts match declaration");
+
+            Check.Equal("C4 未做", ReleaseRecordRules.C4AbsenceText, "C4 absence wording");
+            Check.Equal(6, ReleaseRecordRules.StageIds().Length, "six stages in the record");
+            Check.True(ReleaseRecordRules.M3RequiresAllSix(), "M3 needs all six stages");
+            Check.True(ReleaseRecordRules.C4AbsenceMustBeWritten(), "C4 absence must be written");
+            EvidenceLevel[] missing = new EvidenceLevel[6];
+            EvidenceLevel[] measured = new EvidenceLevel[6];
+            for (int i = 0; i < 6; i++)
+            {
+                missing[i] = EvidenceLevel.Unverified;
+                measured[i] = EvidenceLevel.Manual;
+            }
+            Check.Equal(ReleaseVerdict.EvidenceMissing,
+                        ReleaseRecordRules.Evaluate(missing, false, ReleaseRecordRules.C4AbsenceText),
+                        "unverified stages block M3");
+            Check.Equal(ReleaseVerdict.EvidenceMissing,
+                        ReleaseRecordRules.Evaluate(null, false, ReleaseRecordRules.C4AbsenceText),
+                        "null evidence blocks M3");
+            Check.Equal(ReleaseVerdict.C4NotDeclared,
+                        ReleaseRecordRules.Evaluate(measured, false, ""),
+                        "C4 absence without note is a separate red");
+            Check.Equal(ReleaseVerdict.Publishable,
+                        ReleaseRecordRules.Evaluate(measured, false, ReleaseRecordRules.C4AbsenceText),
+                        "declared C4 absence with six measured stages is publishable");
+            Check.True(ReleaseRecordRules.CountsMatchDeclaration(), "record counts match declaration");
+
+            ReleaseRecordState state = new ReleaseRecordState(measured, false, ReleaseRecordRules.C4AbsenceText);
+            Check.Equal(8, state.LineCount(), "six stages + C4 + M3");
+            Check.Equal(ReleaseVerdict.Publishable, state.Verdict(), "state verdict");
+            Check.True(state.C4AbsenceDeclared(), "C4 absence declared");
+            ReleaseRecordState current = new ReleaseRecordState(missing, false, "");
+            Check.Equal(ReleaseVerdict.EvidenceMissing, current.Verdict(), "current project is not publishable");
+            Check.False(current.C4AbsenceDeclared(), "current project has not declared C4 absence");
             return true;
         }
     }

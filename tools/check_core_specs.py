@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B1/B2/B3/B4/B5/B6/B7 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单 + 图标缩略图 + 自测 / 出包）与 C# 零依赖 runner 的结构核对。
+B1/B2/B3/B4/B5/B6/B7/B8 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单 + 图标缩略图 + 自测 / 出包 + 发布线）与 C# 零依赖 runner 的结构核对。
 
 零第三方依赖。退出码 = 红条数。
   python tools/check_core_specs.py                 # 扫仓库
@@ -95,6 +95,17 @@ CORE_TYPES = {
     "BudgetTableRules.cs": r"\bclass\s+BudgetTableRules\b",
     "CrashDigestRules.cs": r"\bclass\s+CrashDigestRules\b",
     "SingleInstanceRules.cs": r"\bclass\s+SingleInstanceRules\b",
+    # B8：发布线 H1–H6 / C4 规则层（全部零 I/O）
+    "ReleaseStageRules.cs": r"\bclass\s+ReleaseStageRules\b",
+    "EvidencePolicyRules.cs": r"\bclass\s+EvidencePolicyRules\b",
+    "DpiMatrixRules.cs": r"\bclass\s+DpiMatrixRules\b",
+    "WriteEvidenceRules.cs": r"\bclass\s+WriteEvidenceRules\b",
+    "CompatibilityMatrixRules.cs": r"\bclass\s+CompatibilityMatrixRules\b",
+    "CrashReportReadingRules.cs": r"\bclass\s+CrashReportReadingRules\b",
+    "PerfRegressionRules.cs": r"\bclass\s+PerfRegressionRules\b",
+    "CodeSigningRules.cs": r"\bclass\s+CodeSigningRules\b",
+    "AvScanRules.cs": r"\bclass\s+AvScanRules\b",
+    "ReleaseRecordRules.cs": r"\bclass\s+ReleaseRecordRules\b",
 }
 
 EXPECTED_GROUPS = [
@@ -119,6 +130,11 @@ EXPECTED_GROUPS = [
     "portable-gate-inventory", "portable-ledger", "portable-build-manifest",
     "portable-package-selfcheck", "portable-budget-table",
     "portable-crash-digest", "single-instance-marker",
+    # B8 新增门卡组（§8.3 发布线 C4 + H1–H6）
+    "release-stage-order", "release-degraded-path", "release-evidence-policy",
+    "release-av-scan", "release-dpi-matrix", "release-write-evidence",
+    "release-compat-matrix", "release-crash-reading", "release-perf-regression",
+    "release-signing-and-record",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -187,6 +203,9 @@ ENUM_EXPECT = {
     # B7 新增枚举（Core 层）
     "EvidenceLevel": 4,
     "BudgetKind": 4,
+    # B8 新增枚举（Core 层）
+    "ReleaseStage": 7,
+    "ReleaseVerdict": 3,
 }
 
 

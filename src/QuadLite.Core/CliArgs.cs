@@ -26,7 +26,7 @@ namespace QuadLite.Core
         public string ShotSplit { get { return shotSplit; } }
         public bool ParticipatesInSingleInstance
         {
-            get { return mode != CliMode.Diagnose && mode != CliMode.SelfTest; }
+            get { return SingleInstanceRules.ParticipatesInSingleInstance(mode); }
         }
     }
 
@@ -43,6 +43,12 @@ namespace QuadLite.Core
                 for (int i = 0; i < args.Length; i++)
                 {
                     string a = args[i] == null ? "" : args[i];
+                    if (!a.StartsWith("--", StringComparison.Ordinal) ||
+                        !CliContractRules.IsKnown(a))
+                    {
+                        return Reject("未知参数: " + a);
+                    }
+
                     if (a == "--selftest")
                     {
                         mode = CliMode.SelfTest;
@@ -59,6 +65,12 @@ namespace QuadLite.Core
                     {
                         sawShot = true;
                         mode = CliMode.Shot;
+                        // §6.4 的 --shot <path> 与 B2 的 --shot --split 都合法。
+                        if (i + 1 < args.Length && args[i + 1] != null &&
+                            !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                        {
+                            i++;
+                        }
                     }
                     else if (a == "--split")
                     {
@@ -69,10 +81,33 @@ namespace QuadLite.Core
                         i++;
                         shotSplit = args[i] == null ? "" : args[i];
                     }
-                    else
+                    else if (CliContractRules.IsShotModifier(a))
                     {
-                        return Reject("未知参数: " + a);
+                        if (!sawShot || i + 1 >= args.Length)
+                        {
+                            return Reject(a + " 需要 --shot 且后接参数");
+                        }
+                        i++;
                     }
+                    else if (a == "--bench" || a == "--open-test" ||
+                             a == "--thumbs" || a == "--dumpmenu")
+                    {
+                        if (i + 1 >= args.Length)
+                        {
+                            return Reject(a + " 需要参数");
+                        }
+                        i++;
+                        mode = CliMode.Diagnose;
+                    }
+                    else if (a == "--data-dir")
+                    {
+                        if (i + 1 >= args.Length)
+                        {
+                            return Reject("--data-dir 需要参数");
+                        }
+                        i++;
+                    }
+                    // --no-persist 不改模式，由便携层消费。
                 }
             }
             return new CliParseResult(true, "", mode, shotSplit);
@@ -85,7 +120,7 @@ namespace QuadLite.Core
 
         public static string LegalParameters()
         {
-            return "--selftest | --shot --split <layout=...,colTop=...> | --diagnose | --shell-menu-host";
+            return CliContractRules.LegalParameters();
         }
     }
 }

@@ -123,6 +123,22 @@ B5 的 7 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 
 B6 的 7 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担，本机只记静态那一半。布局已由用户拍板保持规格 v1.2 四档，规格未改（见 `docs/adr/ADR-v2-008.md` D1）。
 
+## B7 登记
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| B7 自测 / 出包规则类型齐备 | 临时副本删掉 `SelftestReportRules.cs` | `check-selftest-specs`、`check-core-specs` |
+| B7 门卡组注册齐备 | 临时副本删掉 `Run("cli-selftest-output", TestCliSelftestOutput);` | `check-selftest-specs`、`check-core-specs` |
+| `--selftest` ≥100 行判据不漂移 | 临时副本把 `MinOutputLines = 100` 改成 1 | `check-selftest-specs` |
+| `BUILD.txt` 七字段不缩水 | 临时副本把 `FieldCount = 7` 改成 6 | `check-selftest-specs` |
+| 门卡总表与 §7.1 逐项一致 | 临时副本从 `Gates()` 删掉 `menu-sentinel` | `check-selftest-specs`（第 5 项集合比对） |
+| App 自测状态内核齐备 | 临时副本删掉 `SelftestState.cs` | `check-selftest-specs` |
+| L4 状态内核零 I/O / C# 5 语法子集 | 注入 `using System.IO;` / C# 6 字符串插值 | `check-selftest-specs`、`check-boundaries` B-02 / `check-core-specs` |
+| 规格仍 v1.2 四档、B7 判据未擅改 | 改动 `design-v2.md` 的 B7 行或版本状态 | `check-selftest-specs` |
+| 命令行契约 parse 与声明不分叉 | 改 `CliArgs` 使其绕开 `CliContractRules` | `check-selftest-specs` 第 7 项 + `cli-*` runner |
+
+B7 的 8 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担，本机只记静态那一半。B7 修订了 B2 的 `CliArgs.Parse`（补齐 §6.4 参数与诊断豁免），B2 既有 `cli-*` 断言一条未删，见 `docs/adr/ADR-v2-009.md` D3。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -155,6 +171,13 @@ B6 的 7 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 | 盘符图标逐像素比对、EXIF 像素级变换、图标与缩略图渲染控件 | B6 后续批次 | **未实现 / 未验证** |
 | 运行期零写入三段取证（注册表 / 应用目录 / 系统缓存） | 发布线 H3 | 未验证（源码只给出三个观察区与允许条件） |
 | App 图标缩略图状态内核库编译 | CI `csharp-app-compile`（8 个 .cs） | CI 实测通过：run `42343839222` 该步骤 `success`；只编译、不运行；本机不执行 C# 编译器 |
+| 真实产品 exe 的 `--selftest` / `--bench` / `--shot` / `--open-test` | 出包批次 / 发布线 | **未实现 / 未验证**（B7 只交 runner exe 的 120 行报告，见 `ADR-v2-009` D6） |
+| `BUILD.txt` 七字段真实采集（编译时间 / 提交 / 工作树 / exe 大小 / sha256 / 嵌入资源 / 包自检结果） | 出包批次 | **未实现 / 未验证**（只交字段齐备判据与脏树 Warning 规则） |
+| 单文件出包、零安装、免运行时、杀软误报 | 发布线 H1–H6 | **未实现 / 未验证** |
+| 崩溃摘要真实写入与脱敏核验、性能预算实测值、高 DPI 四档 | 发布线 H4 / H5 / H1 | **未实现 / 未验证**（预算表四行只报 `unmeasured` + 未验证） |
+| 真实 Mutex / `run.lock` / `WM_COPYDATA('QL')` 转发 | Fs / App 宿主后续批次 | **未实现 / 未验证** |
+| 自测 / 出包规则层（`cli-*` / `portable-*` / `single-instance-*` 十组） | B7 C# runner（CI 编译实跑） | 待 CI 实跑；本机 64 组自测 / 53 条负向对照实测绿 |
+| App 自测 / 出包状态内核库编译 | CI `csharp-app-compile`（10 个 .cs） | 待 CI 实跑；只编译、不运行 |
 
 ## 远端验证（CI）
 
@@ -171,6 +194,8 @@ B4 起 CI 再增加 `check-list-specs`（`csharp-runner` 与 `csharp-app-compile
 B5 起 CI 再增加 `check-menu-specs`（`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core、2 个 App 与 1 个 Tests 文件，无需新增编译步骤）：`csharp-runner` 扩到 43 组（含 10 组 B5 菜单），`csharp-app-compile` 编译 6 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；§10「产品程序集 verb 查询 0 次」由 `check-menu-specs` 与 `check-open-source` 双门卡本机实测。真实原生菜单 COM 宿主 / 崩溃哨兵磁盘标记 / 自绘兜底 UI 不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42232312609`（head `aa63769`），十二个门卡 / 编译步骤逐项 `success`，其中 `check-menu-specs` `success`、`csharp-runner` 退出码 0 ⇒ 43 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile` 编译成功且不运行。逐批结论见 `docs/run-ledger.md`。
 
 B6 起 CI 再增加 `check-icon-specs`：`csharp-runner` 与 `csharp-app-compile` 用目录 glob 自动包含新增的 8 个 Core 与 2 个 App 文件，无需新增编译步骤；`csharp-runner` 扩到 51 组（含 8 组 B6 图标缩略图），`csharp-app-compile` 编译 8 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 55 组 / 45 条负向对照，本机实测绿，「唯一写入例外」由 `check-boundaries` INV-06 与 `check-icon-specs` 双门卡核对。真实 WIC 解码、系统图像工厂、图标缩略图渲染与三段取证不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42343839222`（head `c0529da`，含 B6 功能提交 `8d90b7a` 与账本回填提交 `c0529da`），十三个门卡 / 编译步骤逐项 `success`，其中 `check-icon-specs` `success`、`csharp-runner` 退出码 0 ⇒ 51 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile`（8 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通。逐批结论见 `docs/run-ledger.md`。
+
+B7 起 CI 再增加 `check-selftest-specs`；`csharp-runner` 的编译命令自本批起同时包含 `src/QuadLite.App/*.cs`（此前只编 Core + Tests），因为 runner 的 120 行报告由 `SelftestState` 装配：`csharp-runner` 扩到 61 组（含 10 组 B7），`csharp-app-compile` 编译 10 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 64 组 / 53 条负向对照，本机实测绿。门卡总表与 §7.1 的 50 项由 `check-selftest-specs` 逐项比对，删一项即判红；`CliArgs` 复用契约表的三处委托也由静态门卡核对。真实产品 exe 的 `--selftest`、`BUILD.txt` 采集、单文件出包、`--bench` 采样、崩溃日志写入与零写入三段取证不在 CI 内，相关项维持「未验证」。**B7 的 `check-selftest-specs`、61 组 C# runner 与 10 个 App 状态内核库编译待 CI 实跑**，本机不执行 C# 编译器，不把静态绿写成算法跑通。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

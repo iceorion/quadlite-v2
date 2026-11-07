@@ -10,8 +10,9 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 六类外壳静态契约负向对照；B4 起增加 check-list-specs 正向 +
 六类列表视图静态契约负向对照；B5 起增加 check-menu-specs 正向 +
 七类系统原生菜单静态契约负向对照；B6 起增加 check-icon-specs 正向 +
-七类图标缩略图静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
-exe 形态 --selftest 随 B7 引入。
+七类图标缩略图静态契约负向对照；B7 起增加 check-selftest-specs 正向 +
+八类自测 / 出包静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 形态 --selftest 仍未接入。
 """
 import shutil
 import subprocess
@@ -389,6 +390,74 @@ def mutate_cs6_icon(dst):
                  encoding="utf-8")
 
 
+# ---- B7 负向对照 ----
+def negative_selftest_specs(label, mutate):
+    """临时副本里破坏一条自测 / 出包静态契约，check-selftest-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_selftest_specs.py"), "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-selftest-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_report_rules(dst):
+    (dst / "src" / "QuadLite.Core" / "SelftestReportRules.cs").unlink()
+
+
+def mutate_drop_b7_group(dst):
+    p = dst / "tests" / "QuadLite.Tests" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('Run("cli-selftest-output", TestCliSelftestOutput);\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_min_lines_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "SelftestReportRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("MinOutputLines = 100", "MinOutputLines = 1")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_manifest_field_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "BuildManifestRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("FieldCount = 7", "FieldCount = 6")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_gate_inventory_drift(dst):
+    p = dst / "src" / "QuadLite.Core" / "GateInventoryRules.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('"menu-sentinel", ', "", 1)
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_delete_selftest_state(dst):
+    (dst / "src" / "QuadLite.App" / "SelftestState.cs").unlink()
+
+
+def mutate_b7_app_io(dst):
+    p = dst / "src" / "QuadLite.App" / "PackageState.cs"
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def mutate_cs6_selftest(dst):
+    p = dst / "src" / "QuadLite.App" / "SelftestState.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class Bad5 { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -407,7 +476,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5 + B6)")
+    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5 + B6 + B7)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -417,6 +486,7 @@ def main():
     expect_green("check-list-specs", script("check_list_specs.py"))
     expect_green("check-menu-specs", script("check_menu_specs.py"))
     expect_green("check-icon-specs", script("check_icon_specs.py"))
+    expect_green("check-selftest-specs", script("check_selftest_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -471,6 +541,14 @@ def main():
     negative_icon_specs("missing-thumb-state", mutate_delete_thumb_state)
     negative_icon_specs("thumb-app-io", mutate_thumb_app_io)
     negative_icon_specs("cs6-syntax", mutate_cs6_icon)
+    negative_selftest_specs("missing-report-rules", mutate_delete_report_rules)
+    negative_selftest_specs("missing-b7-group", mutate_drop_b7_group)
+    negative_selftest_specs("min-lines-drift", mutate_min_lines_drift)
+    negative_selftest_specs("manifest-field-drift", mutate_manifest_field_drift)
+    negative_selftest_specs("gate-inventory-drift", mutate_gate_inventory_drift)
+    negative_selftest_specs("missing-selftest-state", mutate_delete_selftest_state)
+    negative_selftest_specs("app-io", mutate_b7_app_io)
+    negative_selftest_specs("cs6-syntax", mutate_cs6_selftest)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

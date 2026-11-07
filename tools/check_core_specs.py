@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-B1/B2/B3/B4/B5/B6 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单 + 图标缩略图）与 C# 零依赖 runner 的结构核对。
+B1/B2/B3/B4/B5/B6/B7 静态契约门卡：Core 纯逻辑层（L0 + 编排 + 布局 + 列表 + 菜单 + 图标缩略图 + 自测 / 出包）与 C# 零依赖 runner 的结构核对。
 
 零第三方依赖。退出码 = 红条数。
   python tools/check_core_specs.py                 # 扫仓库
@@ -85,6 +85,16 @@ CORE_TYPES = {
     "VideoThumbRules.cs": r"\bclass\s+VideoThumbRules\b",
     "ThumbToggleRules.cs": r"\bclass\s+ThumbToggleRules\b",
     "ThumbWriteRules.cs": r"\bclass\s+ThumbWriteRules\b",
+    # B7：自测装置 / 门卡总表 / 账本 / 出包自检 / 命令行契约（全部零 I/O）
+    "CliContractRules.cs": r"\bclass\s+CliContractRules\b",
+    "SelftestReportRules.cs": r"\bclass\s+SelftestReportRules\b",
+    "GateInventoryRules.cs": r"\bclass\s+GateInventoryRules\b",
+    "LedgerRules.cs": r"\bclass\s+LedgerRules\b",
+    "BuildManifestRules.cs": r"\bclass\s+BuildManifestRules\b",
+    "PackageSelfcheckRules.cs": r"\bclass\s+PackageSelfcheckRules\b",
+    "BudgetTableRules.cs": r"\bclass\s+BudgetTableRules\b",
+    "CrashDigestRules.cs": r"\bclass\s+CrashDigestRules\b",
+    "SingleInstanceRules.cs": r"\bclass\s+SingleInstanceRules\b",
 }
 
 EXPECTED_GROUPS = [
@@ -104,6 +114,11 @@ EXPECTED_GROUPS = [
     # B6 新增门卡组（附录 C 的 icon-* / thumb-* / thumb-nowrite 三个门卡组展开）
     "icon-*", "thumb-whitelist", "thumb-exif", "thumb-queue",
     "thumb-cache", "thumb-video", "thumb-toggle", "thumb-nowrite",
+    # B7 新增门卡组（附录 C F 组的 cli-* / portable-* / single-instance-* 展开）
+    "cli-contract", "cli-diagnostic-modes", "cli-selftest-output",
+    "portable-gate-inventory", "portable-ledger", "portable-build-manifest",
+    "portable-package-selfcheck", "portable-budget-table",
+    "portable-crash-digest", "single-instance-marker",
 ]
 
 # C# 5 语法子集：出现这些构造即判红（DD-01 / NFR-06）
@@ -169,6 +184,9 @@ ENUM_EXPECT = {
     "CacheKeyPart": 4,
     "ThumbFailure": 4,
     "WriteZone": 3,
+    # B7 新增枚举（Core 层）
+    "EvidenceLevel": 4,
+    "BudgetKind": 4,
 }
 
 
@@ -272,10 +290,12 @@ def main():
             bad("runner 门卡组数量 %d != %d" % (len(groups), len(EXPECTED_GROUPS)))
         else:
             ok("runner 门卡组注册齐备（%d 组）" % len(groups))
-        if "verdict:" not in ptext or "return failures" not in ptext:
+        has_verdict = "verdict:" in ptext or "report.VerdictLine()" in ptext
+        has_exit_code = "return failures" in ptext or "report.ExitCode()" in ptext
+        if not has_verdict or not has_exit_code:
             bad("runner 缺少 verdict 输出或退出码 = 红条数")
         else:
-            ok("runner 输出 verdict / 退出码 = 红条数")
+            ok("runner 输出 verdict / 退出码 = 红条数（B7 起委托 SelftestState）")
 
     # 5. Core 零 I/O（与 check-boundaries 同源，给出更明确的定位）
     io_hits = []

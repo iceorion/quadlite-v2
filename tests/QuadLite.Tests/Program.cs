@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using QuadLite.Core;
+using QuadLite.App;
 
 namespace QuadLite.Tests
 {
@@ -14,6 +15,14 @@ namespace QuadLite.Tests
 
         public static int Main(string[] args)
         {
+            // B7 自测装置：门卡总表 / 预算表 / 账本 / 包自检明细行先行输出，
+            // 与后面的组结果和末两行合计 ≥100 行（§8.1 B7）。
+            string[] detail = SelftestState.DetailLines();
+            for (int i = 0; i < detail.Length; i++)
+            {
+                Console.WriteLine(detail[i]);
+            }
+
             Run("path-*", TestPath);
             Run("safewalk-*", TestSafeWalk);
             Run("cols-*", TestColumns);
@@ -65,17 +74,23 @@ namespace QuadLite.Tests
             Run("thumb-video", TestThumbVideo);
             Run("thumb-toggle", TestThumbToggle);
             Run("thumb-nowrite", TestThumbNoWrite);
+            Run("cli-contract", TestCliContract);
+            Run("cli-diagnostic-modes", TestCliDiagnosticModes);
+            Run("cli-selftest-output", TestCliSelftestOutput);
+            Run("portable-gate-inventory", TestGateInventory);
+            Run("portable-ledger", TestLedger);
+            Run("portable-build-manifest", TestBuildManifest);
+            Run("portable-package-selfcheck", TestPackageSelfcheck);
+            Run("portable-budget-table", TestBudgetTable);
+            Run("portable-crash-digest", TestCrashDigest);
+            Run("single-instance-marker", TestSingleInstanceMarker);
 
-            Console.WriteLine("groups=51, failed=" + failures.ToString());
-            if (failures == 0)
-            {
-                Console.WriteLine("verdict: GREEN");
-            }
-            else
-            {
-                Console.WriteLine("verdict: RED (" + failures.ToString() + ")");
-            }
-            return failures;
+            SelftestState report = new SelftestState(61, failures);
+            Console.WriteLine("groups=" + report.GroupCount.ToString() +
+                              ", failed=" + failures.ToString() +
+                              ", lines=" + report.LineCount().ToString());
+            Console.WriteLine(report.VerdictLine());
+            return report.ExitCode();
         }
 
         private static void Run(string name, Func<bool> test)
@@ -1688,6 +1703,218 @@ namespace QuadLite.Tests
             Check.True(ThumbWriteRules.NoPersistWritesNothing(), "no-persist writes nothing");
             Check.True(ThumbWriteRules.ConfigRootOnlyData(), "config root only data");
             Check.False(ThumbWriteRules.SilentFallbackToUserProfile(), "no silent profile fallback");
+            return true;
+        }
+
+        private static bool TestCliContract()
+        {
+            Check.Equal(9, CliContractRules.SpecParameterCount, "spec table has nine parameters");
+            Check.Equal(14, CliContractRules.ParameterCount, "fourteen known parameters");
+            Check.Equal(14, CliContractRules.Parameters().Length, "parameter list length");
+            Check.True(CliContractRules.CountsMatchDeclaration(), "counts match declaration");
+            Check.True(CliContractRules.IsKnown("--selftest"), "selftest known");
+            Check.True(CliContractRules.IsKnown("--data-dir"), "data-dir known");
+            Check.False(CliContractRules.IsKnown("--bogus"), "unknown parameter rejected");
+            Check.True(CliContractRules.IsDiagnostic("--selftest"), "selftest is diagnostic");
+            Check.True(CliContractRules.IsDiagnostic("--bench"), "bench is diagnostic");
+            Check.False(CliContractRules.RequiresValue("--selftest"), "selftest takes no value");
+            Check.True(CliContractRules.RequiresValue("--bench"), "bench needs a value");
+            Check.True(CliContractRules.RequiresValue("--data-dir"), "data-dir needs a value");
+            Check.True(CliContractRules.AllowsOptionalValue("--shot"), "shot value is optional");
+            Check.False(CliContractRules.AllowsOptionalValue("--bench"), "bench value is mandatory");
+            Check.True(CliContractRules.IsShotModifier("--view"), "view is a shot modifier");
+            Check.True(CliContractRules.IsExcludedFromRelease("--thumbs"), "thumbs excluded from package");
+            Check.False(CliContractRules.IsExcludedFromRelease("--selftest"), "selftest stays in package");
+            Check.True(CliContractRules.LegalParameters().IndexOf("--selftest") >= 0, "legal list contains selftest");
+            Check.True(CliContractRules.LegalParameters().IndexOf("--data-dir") >= 0, "legal list contains data-dir");
+
+            Check.True(CliArgs.Parse(new string[] { "--bench", "dir" }).Ok, "bench with value accepted");
+            Check.True(CliArgs.Parse(new string[] { "--open-test", "target" }).Ok, "open-test accepted");
+            Check.True(CliArgs.Parse(new string[] { "--thumbs", "dir" }).Ok, "thumbs accepted");
+            Check.True(CliArgs.Parse(new string[] { "--dumpmenu", "menu" }).Ok, "dumpmenu accepted");
+            Check.True(CliArgs.Parse(new string[] { "--data-dir", "dir", "--no-persist" }).Ok, "portable escapes accepted");
+            Check.True(CliArgs.Parse(new string[] { "--shot", "out.png" }).Ok, "shot with path accepted");
+            Check.True(CliArgs.Parse(new string[] { "--shot", "--view", "details" }).Ok, "shot with modifier accepted");
+            Check.False(CliArgs.Parse(new string[] { "--bench" }).Ok, "bench without value rejected");
+            Check.False(CliArgs.Parse(new string[] { "--view", "details" }).Ok, "modifier without shot rejected");
+            Check.False(CliArgs.Parse(new string[] { "--bogus" }).Ok, "unknown parameter still rejected");
+            Check.Equal(CliMode.Diagnose, CliArgs.Parse(new string[] { "--bench", "dir" }).Mode, "bench uses diagnose mode");
+            Check.Equal(CliMode.Normal, CliArgs.Parse(new string[] { "--data-dir", "dir" }).Mode, "data-dir keeps normal mode");
+            return true;
+        }
+
+        private static bool TestCliDiagnosticModes()
+        {
+            Check.True(SingleInstanceRules.DiagnosticModesBypass(), "diagnostic modes bypass single instance");
+            Check.True(CliArgs.Parse(new string[0]).ParticipatesInSingleInstance, "normal mode participates");
+            Check.False(CliArgs.Parse(new string[] { "--selftest" }).ParticipatesInSingleInstance, "selftest bypasses");
+            Check.False(CliArgs.Parse(new string[] { "--bench", "dir" }).ParticipatesInSingleInstance, "bench bypasses");
+            Check.False(CliArgs.Parse(new string[] { "--shot", "out.png" }).ParticipatesInSingleInstance, "shot bypasses");
+            Check.False(CliArgs.Parse(new string[] { "--open-test", "target" }).ParticipatesInSingleInstance, "open-test bypasses");
+            Check.False(CliArgs.Parse(new string[] { "--thumbs", "dir" }).ParticipatesInSingleInstance, "thumbs bypasses");
+            Check.False(CliArgs.Parse(new string[] { "--diagnose" }).ParticipatesInSingleInstance, "diagnose bypasses");
+            Check.False(CliArgs.Parse(new string[] { "--shell-menu-host" }).ParticipatesInSingleInstance, "host mode bypasses");
+            Check.True(CliArgs.Parse(new string[] { "--no-persist" }).ParticipatesInSingleInstance, "no-persist still participates");
+            Check.Equal(2, CliContractRules.ExcludedFromRelease().Length, "two diagnostic tools excluded");
+            Check.True(CliContractRules.IsExcludedFromRelease("--dumpmenu"), "dumpmenu not in release package");
+            return true;
+        }
+
+        private static bool TestCliSelftestOutput()
+        {
+            Check.Equal(100, SelftestReportRules.MinOutputLines, "minimum 100 lines");
+            Check.Equal(120, SelftestReportRules.LineCount(61, 50, 4, 3), "report line count");
+            Check.True(SelftestReportRules.MeetsMinimum(120), "120 lines is enough");
+            Check.False(SelftestReportRules.MeetsMinimum(99), "99 lines is not enough");
+            Check.True(SelftestReportRules.IsVerdictLine("verdict: GREEN"), "verdict line recognised");
+            Check.False(SelftestReportRules.IsVerdictLine("groups=61"), "group line is not verdict");
+            Check.Equal("verdict: GREEN", SelftestReportRules.VerdictLine(0), "green verdict");
+            Check.Equal("verdict: RED (2)", SelftestReportRules.VerdictLine(2), "red verdict");
+            Check.Equal(3, SelftestReportRules.ExitCode(3), "exit code equals red count");
+            Check.Equal("cli-*: ok=True", SelftestReportRules.GroupLine("cli-*", true), "group line format");
+            Check.True(SelftestReportRules.MillisecondsAreReportOnly(), "milliseconds report only");
+            Check.True(SelftestReportRules.NoTimingVerdict(), "no timing verdict");
+            Check.Equal(6, SelftestReportRules.ReportSections().Length, "six report sections");
+
+            SelftestState clean = new SelftestState(61, 0);
+            Check.Equal(57, SelftestState.DetailLineCount(), "detail rows");
+            Check.Equal(120, clean.LineCount(), "state line count");
+            Check.True(clean.MeetsMinimumLines(), "state output meets minimum");
+            Check.Equal("verdict: GREEN", clean.VerdictLine(), "state green verdict");
+            SelftestState red = new SelftestState(61, 2);
+            Check.Equal("verdict: RED (2)", red.VerdictLine(), "state red verdict");
+            Check.Equal(2, red.ExitCode(), "state exit code");
+            return true;
+        }
+
+        private static bool TestGateInventory()
+        {
+            Check.Equal(9, GateInventoryRules.GroupCount, "nine gate groups");
+            Check.Equal(50, GateInventoryRules.GateCount, "fifty registered gates");
+            Check.Equal(9, GateInventoryRules.BatchCount, "nine batches");
+            Check.Equal(50, GateInventoryRules.Gates().Length, "gate list length");
+            Check.Equal(9, GateInventoryRules.Groups().Length, "group list length");
+            Check.Equal(9, GateInventoryRules.BatchIds().Length, "batch list length");
+            Check.True(GateInventoryRules.CountsMatchDeclaration(), "counts match declaration");
+            Check.True(GateInventoryRules.IsRegistered("menu-sentinel"), "menu sentinel registered");
+            Check.True(GateInventoryRules.IsOrphan("bogus-*"), "unknown gate is orphan");
+            Check.Equal("B5", GateInventoryRules.BatchFor("menu-sentinel"), "menu gates belong to B5");
+            Check.Equal("B6", GateInventoryRules.BatchFor("icon-*"), "icon gates belong to B6");
+            Check.Equal("B0", GateInventoryRules.BatchFor("check-trace"), "trace gate belongs to B0");
+            Check.Equal("B2/B7", GateInventoryRules.BatchFor("cli-*"), "cli gates belong to B2/B7");
+            string[] gates = GateInventoryRules.Gates();
+            for (int i = 0; i < gates.Length; i++)
+            {
+                Check.True(GateInventoryRules.BatchFor(gates[i]).Length > 0, "gate has an owner batch");
+            }
+            return true;
+        }
+
+        private static bool TestLedger()
+        {
+            Check.Equal(9, LedgerRules.RequiredColumnCount, "nine ledger columns");
+            Check.Equal(9, LedgerRules.Columns().Length, "column list length");
+            Check.Equal(7, LedgerRules.HeadShaLength, "short head_sha length");
+            Check.Equal(4, LedgerRules.EvidenceLevelCount, "four evidence levels");
+            Check.Equal(4, LedgerRules.EvidenceLevels().Length, "evidence level list length");
+            Check.Equal(3, (int)EvidenceLevel.Unverified, "unverified is a first-class level");
+            Check.True(LedgerRules.IsEvidenceLevel("实测"), "local run is evidence");
+            Check.True(LedgerRules.IsEvidenceLevel("未验证"), "unverified is explicit");
+            Check.False(LedgerRules.IsEvidenceLevel("推断"), "inference is not evidence");
+            Check.True(LedgerRules.IsHeadSha("8d90b7a"), "valid head_sha");
+            Check.False(LedgerRules.IsHeadSha("8d90b7"), "too short rejected");
+            Check.False(LedgerRules.IsHeadSha("xyz1234"), "non hex rejected");
+            Check.True(LedgerRules.RequiresHeadSha(), "head_sha mandatory");
+            Check.True(LedgerRules.OneRowPerBatch(), "one row per batch");
+            Check.True(LedgerRules.ForbidsStreakAsEvidence(), "streak is not evidence");
+            Check.True(LedgerRules.UnverifiedMustBeExplicit(), "unverified must be written down");
+            Check.Equal(9, LedgerRules.BatchIds().Length, "B0..B8 rows");
+            Check.True(LedgerRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestBuildManifest()
+        {
+            Check.Equal(7, BuildManifestRules.FieldCount, "seven BUILD.txt fields");
+            Check.Equal(7, BuildManifestRules.Fields().Length, "field list length");
+            Check.Equal("Warning", BuildManifestRules.DirtyTreeWarning, "dirty tree warning token");
+            Check.True(BuildManifestRules.IsComplete(BuildManifestRules.Fields()), "all fields present");
+            Check.False(BuildManifestRules.IsComplete(new string[] { "commit", "sha256" }), "partial manifest rejected");
+            Check.False(BuildManifestRules.IsComplete(null), "null manifest rejected");
+            Check.True(BuildManifestRules.DirtyTreeVerdict(true).IndexOf("Warning") >= 0, "dirty tree writes Warning");
+            Check.Equal("clean", BuildManifestRules.DirtyTreeVerdict(false), "clean tree stays clean");
+            Check.True(BuildManifestRules.RequiresWarningWhenDirty(), "warning required when dirty");
+            Check.True(BuildManifestRules.CountsMatchDeclaration(), "counts match declaration");
+
+            PackageState state = new PackageState("time", "commit", "clean", "size",
+                                                 "hash", "resources", "passed");
+            Check.Equal(7, state.BuildLines().Length, "build lines emitted");
+            Check.True(state.ManifestComplete(), "state manifest complete");
+            return true;
+        }
+
+        private static bool TestPackageSelfcheck()
+        {
+            Check.Equal(2, PackageSelfcheckRules.ContentCount, "exe plus BUILD.txt");
+            Check.Equal(2, PackageSelfcheckRules.Contents().Length, "content list length");
+            Check.True(PackageSelfcheckRules.SingleExecutable(), "single exe package");
+            Check.True(PackageSelfcheckRules.IncludesBuildManifest(), "BUILD.txt included");
+            Check.True(PackageSelfcheckRules.ExcludesDiagnosticTools(), "diagnostic tools excluded");
+            Check.True(PackageSelfcheckRules.NoInstaller(), "no installer");
+            Check.True(PackageSelfcheckRules.NoRuntimeRequired(), "no runtime required");
+            Check.Equal(2, PackageSelfcheckRules.ExcludedToolCount, "two excluded tools");
+            Check.Equal(3, PackageSelfcheckRules.WriteEvidenceZoneCount(), "three write evidence zones");
+            Check.True(PackageSelfcheckRules.SanitizedCrashDigest(), "crash digest sanitized");
+
+            PackageState state = new PackageState("time", "commit", "clean", "size",
+                                                 "hash", "resources", "passed");
+            Check.True(state.SelfcheckPassed(), "package selfcheck passed");
+            Check.Equal(2, state.Contents().Length, "state contents");
+            Check.Equal(3, state.WriteEvidenceZoneCount(), "state evidence zones");
+            return true;
+        }
+
+        private static bool TestBudgetTable()
+        {
+            Check.Equal(4, BudgetTableRules.BudgetCount, "four budget kinds");
+            Check.Equal(7, BudgetTableRules.ColumnCount, "seven budget columns");
+            Check.Equal(4, BudgetTableRules.Kinds().Length, "kind list length");
+            Check.Equal(7, BudgetTableRules.Columns().Length, "column list length");
+            Check.Equal(3, (int)BudgetKind.Startup, "startup is fourth kind");
+            Check.True(BudgetTableRules.OnlyReportsNumbers(), "budget only reports numbers");
+            Check.True(BudgetTableRules.NoThresholdVerdict(), "no threshold verdict");
+            Check.False(BudgetTableRules.IsCiGate(), "budget is not a CI gate");
+            string line = BudgetTableRules.ReportLine("enumeration", "unmeasured", "未验证");
+            Check.True(line.IndexOf("report-only") >= 0, "report line marked report-only");
+            Check.False(line.IndexOf("verdict") >= 0, "report line has no verdict");
+            Check.True(BudgetTableRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestCrashDigest()
+        {
+            Check.Equal(5, CrashDigestRules.FieldCount, "five digest fields");
+            Check.Equal(5, CrashDigestRules.Fields().Length, "field list length");
+            Check.False(CrashDigestRules.ContainsFullPath(), "no full path");
+            Check.False(CrashDigestRules.ContainsFileName(), "no file name");
+            Check.True(CrashDigestRules.NoNetworkUpload(), "no network upload");
+            Check.True(CrashDigestRules.IsSanitized(), "digest sanitized");
+            Check.True(CrashDigestRules.CountsMatchDeclaration(), "counts match declaration");
+            return true;
+        }
+
+        private static bool TestSingleInstanceMarker()
+        {
+            Check.Equal("QL", SingleInstanceRules.Marker, "WM_COPYDATA marker");
+            Check.True(SingleInstanceRules.MarkerValid("QL"), "valid marker");
+            Check.False(SingleInstanceRules.MarkerValid("QX"), "invalid marker rejected");
+            Check.Equal(3, SingleInstanceRules.MechanismCount, "three mechanisms");
+            Check.Equal(3, SingleInstanceRules.Mechanisms().Length, "mechanism list length");
+            Check.True(SingleInstanceRules.ParticipatesInSingleInstance(CliMode.Normal), "normal mode participates");
+            Check.False(SingleInstanceRules.ParticipatesInSingleInstance(CliMode.SelfTest), "selftest bypasses");
+            Check.False(SingleInstanceRules.ParticipatesInSingleInstance(CliMode.Shot), "shot bypasses");
+            Check.True(SingleInstanceRules.DiagnosticModesBypass(), "all diagnostic modes bypass");
+            Check.True(SingleInstanceRules.CountsMatchDeclaration(), "counts match declaration");
             return true;
         }
     }

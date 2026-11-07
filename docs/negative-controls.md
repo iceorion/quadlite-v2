@@ -156,6 +156,27 @@ B7 的 8 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测�
 
 B8 的 10 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；C# runner 的「改坏必红」由 CI 编译运行承担，本机只记静态那一半。B8 沿用 B7 的四级证据等级、预算表、崩溃摘要五字段与三段取证计数，不另立第二套表；当前六阶段全部为「未验证」，`ReleaseState.CurrentM3Verdict()` 返回 `EvidenceMissing`，M3 不成立（见 `docs/adr/ADR-v2-010.md` D6）。
 
+## R1 登记（真实实现第一批）
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| Host 宿主层三类型齐备 | 临时副本删 `Program.cs` / `MainWindow.cs` / `SelftestRunner.cs` | `check-realization-specs`（第 1 / 2 / 3 项） |
+| 进程入口真实启动消息循环 | 临时副本把 `return app.Run(window);` 改成 `return 0;` | `check-realization-specs`（入口契约） |
+| `--selftest` 无窗口分支存在 | 临时副本把 `if (cli.Mode == CliMode.SelfTest)` 改成 `if (false)` | `check-realization-specs`（入口契约） |
+| `build.ps1` 是真实编译链，不是 B0 骨架 | 临时副本回插 `NOT IMPLEMENTED (B7)` 占位 | `check-realization-specs`（构建链） |
+| CI 必须真跑产品 exe | 临时副本把 `real-exe-selftest` 改名 | `check-realization-specs`（CI 真跑链） |
+| Host 零 I/O、零手写 COM、零 verb 查询 | 临时副本注入 `using System.IO;` | `check-realization-specs`、`check-boundaries` B-02 |
+| Host 仍为 C# 5 语法子集 | 临时副本注入 C# 6 字符串插值 | `check-realization-specs` |
+| 单程序集工程资产齐备 | 临时副本删 `QuadLite.Host.csproj` | `check-realization-specs` |
+| 单程序集不允许旁路程序集引用 | 临时副本往 Host.csproj 注入 `ProjectReference` | `check-realization-specs`（单程序集一致性） |
+| 规格 v1.2 批次表不被实现批次污染 | 临时副本往 `design-v2.md` 塞 `\| R1 \|` 行 | `check-realization-specs`（规格一致性） |
+| 决策记录与账本随批次落地 | 临时副本删 `ADR-v2-011.md` | `check-realization-specs`（证据文档） |
+| 真实 exe 能编译、能自测 | CI `real-exe-build` / `real-exe-selftest` 两步（≥100 行 / `verdict: GREEN` / 退出码 0 / `BUILD.txt` 七字段） | CI 远端实测 |
+
+R1 的 13 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；
+真实 exe 的编译与 `--selftest` 退出码由 CI 远端实测，本机不执行 C# 编译器。
+R1 只把「可运行的载体」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-011.md` 偏差登记）。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -166,14 +187,14 @@ B8 的 10 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
 | 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 实测通过（run `42232312609`，本机未验证） |
-| 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（72 个 .cs，命中 0 次；负向对照注入后必红） |
+| 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（R1 后 98 个 .cs，命中 0 次；负向对照注入后必红） |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
 | 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
 | 冲突 / 进度非模态面板 | B3 外壳（偏差，见 `ADR-v2-005` D6） | **未实现 / 未验证** |
 | 危险判级真实绑定 | 外壳注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
 | Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
-| 真实 WPF 窗口 / XAML / 消息循环 / 事件绑定 | B3 后续批次 | **未实现 / 未验证**（B3 只交状态内核与可编译骨架） |
+| 真实 WPF 窗口 / 消息循环 | R1 `src/QuadLite.Host/` + CI `real-exe-build` | **部分实现**：窗口与消息循环已编译（CI 实测），XAML 明确不用；事件绑定、窗格内容、列表控件与交互仍未实现 / 未验证 |
 | 真实 WPF 列表控件 / 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 / 图标与缩略图渲染 | B4 后续批次 / B6 | **未实现 / 未验证**（B4 只交规则层与可编译状态内核） |
 | 真实 `NativeMenuHost` / `IContextMenu` / `IContextMenu2/3` COM 调用、HMENU 生命周期、`TrackPopupMenuEx` 消息循环 | B5 后续批次 / B7 | **未实现 / 未验证**（成熟 COM 绑定未定，见 `ADR-v2-007` D6） |
 | 崩溃哨兵磁盘标记 `data\menu-pending.json` / `menu-safe.json` TTL 过期、自绘兜底 UI 与一键重试按钮 | B5 后续批次 / B6 | **未实现 / 未验证**（只交不可变状态内核与结构化提示串） |
@@ -182,17 +203,17 @@ B8 的 10 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 | 真实目录枚举（`FindFirstFileExW` + `LARGE_FETCH`、4096 / 批） | Fs 层后续批次 | **未实现 / 未验证**（`DirSource` 当前为 128 / 批，见 `ADR-v2-006` D6） |
 | 名称拼音分桶 / 修改日期月历 / 类型动态枚举 | B4 后续批次 | **未实现 / 未验证**（只落地桶键组合逻辑） |
 | 可编辑地址栏、标签拖动 UI、此电脑层真实枚举与盘符取图、会话原子写与备份 | B3 后续批次 / Fs 层 | **未实现 / 未验证** |
-| WPF 应用 MSBuild 构建、`build.ps1 -SingleFile`、exe 形态 `--selftest` | B7 完成出包 | 未验证（CI 不含 WPF 应用构建） |
+| WPF 应用真实构建 / 单文件 exe / exe 形态 `--selftest` | R1 `build.ps1` + CI `real-exe-build` / `real-exe-selftest` | **CI 实测**（run 号见账本 R1 行）；MSBuild 出包路径、`-SingleFile` 之外的打包形态与人工启动窗口仍 **未验证** |
 | 图标缩略图规则层（`icon-*` / `thumb-*` / `thumb-nowrite` 八组） | B6 C# runner（CI 编译实跑） | CI 实测通过：run `42343839222` / head `c0529da`，`csharp-runner` 步骤 `success` ⇒ 退出码 0 ⇒ 51 组 `ok=True`；本机静态门卡实测绿，见 `docs/run-ledger.md` B6 行 |
 | 真实 WIC 解码、`IShellItemImageFactory` 绑定、后台 worker、LRU 介质、视频 8 秒看门狗 | B6 后续批次 / 发布线 | **未实现 / 未验证**（只交纯函数判据，见 `ADR-v2-008` D6） |
 | 盘符图标逐像素比对、EXIF 像素级变换、图标与缩略图渲染控件 | B6 后续批次 | **未实现 / 未验证** |
 | 运行期零写入三段取证（注册表 / 应用目录 / 系统缓存） | 发布线 H3 | 未验证（源码只给出三个观察区与允许条件） |
 | App 图标缩略图状态内核库编译 | CI `csharp-app-compile`（8 个 .cs） | CI 实测通过：run `42343839222` 该步骤 `success`；只编译、不运行；本机不执行 C# 编译器 |
-| 真实产品 exe 的 `--selftest` / `--bench` / `--shot` / `--open-test` | 出包批次 / 发布线 | **未实现 / 未验证**（B7 只交 runner exe 的 120 行报告，见 `ADR-v2-009` D6） |
-| `BUILD.txt` 七字段真实采集（编译时间 / 提交 / 工作树 / exe 大小 / sha256 / 嵌入资源 / 包自检结果） | 出包批次 | **未实现 / 未验证**（只交字段齐备判据与脏树 Warning 规则） |
+| 真实产品 exe 的 `--selftest` / `--bench` / `--shot` / `--open-test` | R1 `--selftest` 由 CI 实跑；其余诊断装置未接入 | `--selftest` **CI 实测**（≥100 行 / `verdict: GREEN` / 退出码 0）；`--bench` / `--shot` / `--open-test` 与真实设备取证仍 **未实现 / 未验证** |
+| `BUILD.txt` 七字段真实采集（编译时间 / 提交 / 工作树 / exe 大小 / sha256 / 嵌入资源 / 包自检结果） | R1 `build.ps1` 采集 + CI 校验七字段 | **CI 实测**（真实 exe 大小与 SHA256）；脏树 Warning 的运行期取证、包在真实机器的便携行为仍 **未验证** |
 | 单文件出包、零安装、免运行时、杀软误报 | 发布线 H1–H6 | **未实现 / 未验证** |
 | 崩溃摘要真实写入与脱敏核验、性能预算实测值、高 DPI 四档 | 发布线 H4 / H5 / H1 | **未实现 / 未验证**（预算表四行只报 `unmeasured` + 未验证） |
-| 真实 Mutex / `run.lock` / `WM_COPYDATA('QL')` 转发 | Fs / App 宿主后续批次 | **未实现 / 未验证** |
+| 真实 Mutex / `run.lock` / `WM_COPYDATA('QL')` 转发 | R1 只接 Mutex 第一段；后两段仍待 Fs / Host 后续批次 | Mutex 段 **已编译**（CI，`--selftest` 不覆盖运行期判重）；`run.lock` 与 `WM_COPYDATA` **未实现 / 未验证** |
 | 自测 / 出包规则层（`cli-*` / `portable-*` / `single-instance-*` 十组） | B7 C# runner（CI 编译实跑） | CI 实测通过：run `42357787519` / head `266ca65`，`csharp-runner` 步骤 `success` ⇒ 退出码 0 ⇒ 61 组 `ok=True`；本机 64 组自测 / 53 条负向对照实测绿 |
 | App 自测 / 出包状态内核库编译 | CI `csharp-app-compile`（10 个 .cs） | CI 实测通过：run `42357787519` 该步骤 `success`；只编译、不运行；本机不执行 C# 编译器 |
 | H1 高 DPI 四档截图 / PerMonitorV2 实装 / 四档几何实测 | 发布线 H1 | **未实现 / 未验证**（B8 只判定四档矩阵齐备与缺档判红） |
@@ -224,6 +245,8 @@ B6 起 CI 再增加 `check-icon-specs`：`csharp-runner` 与 `csharp-app-compile
 B7 起 CI 再增加 `check-selftest-specs`；`csharp-runner` 的编译命令自本批起同时包含 `src/QuadLite.App/*.cs`（此前只编 Core + Tests），因为 runner 的 120 行报告由 `SelftestState` 装配：`csharp-runner` 扩到 61 组（含 10 组 B7），`csharp-app-compile` 编译 10 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 64 组 / 53 条负向对照，本机实测绿。门卡总表与 §7.1 的 50 项由 `check-selftest-specs` 逐项比对，删一项即判红；`CliArgs` 复用契约表的三处委托也由静态门卡核对。真实产品 exe 的 `--selftest`、`BUILD.txt` 采集、单文件出包、`--bench` 采样、崩溃日志写入与零写入三段取证不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42357787519`（head `266ca65`，含 B7 功能提交 `864eff1` 与账本回填提交 `266ca65`），十四个门卡 / 编译步骤逐项 `success`，其中 `check-selftest-specs` `success`、`csharp-runner` 退出码 0 ⇒ 61 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile`（10 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通。逐批结论见 `docs/run-ledger.md`。
 
 B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 10 组 B8 发布线），报告 120 → 130 行，`csharp-app-compile` 编译 12 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 75 组 / 63 条负向对照，本机实测绿。§8.3 依赖链七节点、DPI 四档与降级链由 `check-release-specs` **解析规格原文逐项比对**，改序或改数值即判红；C4 零误报门槛与 M3 证据闭环另由第 6 / 7 项核对。H1–H6 真实取证、C4 带杀软 VM、OV 签名与产品 exe 出包都不在 CI 内，相关项维持「未验证」，M3 不成立。**首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通或可发布。逐批结论见 `docs/run-ledger.md`。
+
+R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 扩到 89 组 / 76 条负向对照。CI run 号与十八步结论在 push 后回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定、列表控件、原生菜单、图标渲染与 H1–H6 取证一律维持「未验证」。
 
 ## 写入例外清单
 

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <!--
+    R1 真实宿主工程：把 Core / Fs / App / Host 四层源码编进同一个程序集，
+    不产生 QuadLite.Core.dll 等旁路产物，天然满足「零 NuGet + 单 exe」。
+    本机与 CI 的实际构建入口是仓库根的 build.ps1（csc /target:winexe /langversion:5）；
+    本 csproj 供 IDE 打开与后续 MSBuild 出包使用，MSBuild 路径尚未实跑，标「未验证」。
+    规格 design-v2.md v1.2 未改动；真实 shell COM 绑定、原生菜单、图标渲染等仍未实现。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>QuadLite.Host</RootNamespace>
+    <AssemblyName>QuadLite</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="MainWindow.cs" />
+    <Compile Include="SelftestRunner.cs" />
+    <Compile Include="..\QuadLite.Core\*.cs" />
+    <Compile Include="..\QuadLite.Fs\*.cs" />
+    <Compile Include="..\QuadLite.App\*.cs" />
+  </ItemGroup>
+</Project>

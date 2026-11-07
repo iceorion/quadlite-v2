@@ -5,10 +5,12 @@ name: gates
 # App 外壳、列表、菜单、图标缩略图、自测 / 出包与发布线状态内核编译。
 # C# 源码以 C# 5 语法子集编译（/langversion:5、/codepage:65001），只引用系统程序集。
 # Fs 层编译成 library 但不运行：真实 IFileOperation / 系统剪贴板 / watcher 行为未验证。
-# B3/B4 的 App 层只编译状态内核（零 I/O、不引用呈现框架程序集）；真实 WPF 窗口 / XAML /
-# 消息循环 / 列表控件 / 拖放 / 系统原生菜单 COM 宿主未接入，MSBuild 的 WPF 应用构建与 build.ps1 -SingleFile
-# 仍未验证；B8 起加 check-release-specs，但 H1–H6 的真实取证与 C4 带杀软 VM
-# 均不在 CI 内，发布线只核对可静态判定的契约，M3 仍不成立。
+# B3/B4 的 App 状态内核只编译成 library（零 I/O、不引用呈现框架程序集）。
+# R1 起新增 real-exe-build / real-exe-selftest 两步：build.ps1 把四层源码用
+# 系统 C# 编译器一次编成单个 QuadLite.exe（WPF 消息循环、PerMonitorV2 manifest），
+# 并在无交互桌面上实跑产品 exe 的 --selftest（≥100 行 / verdict GREEN / 退出码 0）。
+# 列表控件 / 拖放 / 系统原生菜单 COM 宿主 / IFileOperation 真实绑定 / 图标缩略图渲染
+# 仍未接入；MSBuild 出包路径与 H1–H6 真实取证、C4 带杀软 VM 均不在 CI 内，M1 / M3 仍不成立。
 # 详见 docs/adr/ADR-v2-001.md、ADR-v2-002.md、ADR-v2-004.md、ADR-v2-005.md、
 # ADR-v2-006.md、ADR-v2-007.md、ADR-v2-008.md、ADR-v2-009.md、ADR-v2-010.md。
 on:
@@ -45,6 +47,8 @@ jobs:
         run: python tools/check_selftest_specs.py
       - name: check-release-specs
         run: python tools/check_release_specs.py
+      - name: check-realization-specs
+        run: python tools/check_realization_specs.py
       - name: run-tests (includes negative controls)
         run: python tools/run_tests.py
       - name: open-source compliance
@@ -85,3 +89,32 @@ jobs:
           & $compiler /nologo /target:library /langversion:5 /codepage:65001 /r:System.dll /r:System.Core.dll /out:$out $core $app
           if ($LASTEXITCODE -ne 0) { Write-Host "App library compile failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
           Write-Host 'App shell + list + menu + thumb + selftest state compiles as a library; real WPF window/XAML/list controls/native menu COM host/thumbnail rendering/exe --selftest are NOT built here.'
+      - name: real-exe-build (R1 single-file WPF host, C# 5 / net48 / zero NuGet)
+        shell: pwsh
+        run: |
+          $dist = Join-Path $env:RUNNER_TEMP 'quadlite-dist'
+          & ./build.ps1 -Configuration Release -OutDir $dist
+          if ($LASTEXITCODE -ne 0) { Write-Host "real exe build failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
+          $exe = Join-Path $dist 'QuadLite.exe'
+          $manifest = Join-Path $dist 'BUILD.txt'
+          if (-not (Test-Path -LiteralPath $exe)) { Write-Host 'QuadLite.exe missing'; exit 1 }
+          if (-not (Test-Path -LiteralPath $manifest)) { Write-Host 'BUILD.txt missing'; exit 1 }
+          $text = Get-Content -LiteralPath $manifest -Raw
+          foreach ($field in @('compile-time', 'commit', 'worktree', 'exe-size',
+                               'sha256', 'embedded-resources', 'package-selfcheck')) {
+            if ($text -notmatch [regex]::Escape($field)) { Write-Host "BUILD.txt missing $field"; exit 1 }
+          }
+          Write-Host 'real exe built; BUILD.txt has all 7 fields'
+      - name: real-exe-selftest (R1 product exe, >=100 lines, verdict GREEN, exit 0)
+        shell: pwsh
+        run: |
+          $dist = Join-Path $env:RUNNER_TEMP 'quadlite-dist'
+          $exe = Join-Path $dist 'QuadLite.exe'
+          $out = Join-Path $env:RUNNER_TEMP 'quadlite-selftest.txt'
+          $p = Start-Process -FilePath $exe -ArgumentList '--selftest' -Wait -PassThru -RedirectStandardOutput $out
+          if ($null -eq $p -or -not (Test-Path -LiteralPath $out)) { Write-Host 'selftest did not run'; exit 1 }
+          $lines = @(Get-Content -LiteralPath $out -Encoding UTF8)
+          if ($lines.Count -lt 100) { Write-Host "selftest only $($lines.Count) lines"; Get-Content -LiteralPath $out; exit 1 }
+          if ($lines[-1] -ne 'verdict: GREEN') { Write-Host "selftest last line: $($lines[-1])"; Get-Content -LiteralPath $out; exit 1 }
+          if ($p.ExitCode -ne 0) { Write-Host "selftest exit $($p.ExitCode)"; exit 1 }
+          Write-Host "product --selftest: $($lines.Count) lines, verdict GREEN, exit 0"

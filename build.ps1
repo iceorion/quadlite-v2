@@ -1,22 +1,30 @@
 <#
-  build.ps1 —— 构建与单文件出包入口（B0 骨架）
+  build.ps1 —— R1 真实单文件构建入口（零 NuGet / C# 5 / net48 / WPF）。
 
-  参数化 FrameworkPathOverride，不绑定单机工具链路径；零 NuGet 依赖。
-  B0 阶段 src 下尚无产品源码，单文件合并与包自检留待 B7。
-  本机执行策略禁止运行 .ps1，故本脚本在 B0 未实跑，结论记「未验证」；
-  CI 首次实跑与 B1 起引入源码后的证据见 docs/adr/ADR-v2-001.md。
+  把 Core / Fs / App / Host 四层源码一次性交给系统 C# 编译器编成单个
+  QuadLite.exe，不产生旁路程序集，也不需要 ILMerge 之类第三方合并工具。
+  BUILD.txt 按 §5.5 / B7 的七字段采集真实 exe 的大小与 SHA256，
+  工作树脏照实写并附 Warning；编译未执行时只写「未验证」，不用「没报错」冒充通过。
+
+  CI（windows-latest）通过 real-exe-build 步骤实跑本脚本；
+  本机受执行策略与编译器调用限制未实跑，标「未验证」。
+  规格 design-v2.md v1.2 未改动。
 #>
 [CmdletBinding()]
 param(
     [string]$Configuration = 'Release',
     [string]$FrameworkPathOverride = '',
     [string]$OutDir = '',
+    [string]$CscPath = '',
     [switch]$SingleFile
 )
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $MyInvocation.MyCommand.Path
 if ($OutDir -eq '') { $OutDir = Join-Path $repo 'dist\single' }
+if (-not (Test-Path -LiteralPath $OutDir)) {
+    New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+}
 
 function Get-GitText {
     param([string[]]$GitArgs)
@@ -29,68 +37,126 @@ $head = Get-GitText @('rev-parse', 'HEAD')
 if ($head -eq '') { $head = 'unknown' }
 $dirty = Get-GitText @('status', '--porcelain')
 if ($dirty -eq '') { $tree = 'clean' } else { $tree = 'dirty' }
-
 $exePath = Join-Path $OutDir 'QuadLite.exe'
-$exeSize = 'n/a'
-$exeHash = 'n/a'
-if (Test-Path -LiteralPath $exePath) {
-    $item = Get-Item -LiteralPath $exePath
-    $exeSize = $item.Length
-    $exeHash = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
-}
+$manifestPath = [System.IO.Path]::GetFullPath((Join-Path $repo 'src\QuadLite.Host\app.manifest'))
 
-$singleFileLine = 'single-file packaging: not applied'
-if ($SingleFile) {
-    $singleFileLine = 'single-file packaging: NOT IMPLEMENTED (B7); -SingleFile accepted but not executed'
-}
-
-$msbuildCmd = Get-Command 'MSBuild.exe' -ErrorAction SilentlyContinue
-if ($null -eq $msbuildCmd) {
-    Write-Output 'BUILD: MSBuild unavailable on this machine'
-    Write-Output 'status: 未验证（未执行构建，不用「没报错」冒充通过）'
-    if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
-    $lines = @(
-        "build_time_utc = $([DateTime]::UtcNow.ToString('o'))",
-        "commit         = $head",
-        "worktree       = $tree",
-        "configuration  = $Configuration",
-        "framework_path_override = $(if ($FrameworkPathOverride -eq '') { 'default' } else { $FrameworkPathOverride })",
-        "exe_size       = $exeSize",
-        "exe_sha256     = $exeHash",
-        "embedded_resources = none (B0 skeleton)",
-        "package_selfcheck = 未验证",
-        $singleFileLine,
-        'Warning: build not executed; MSBuild unavailable'
+function Write-BuildManifest {
+    param(
+        [string]$ExeSize,
+        [string]$ExeHash,
+        [string]$Selfcheck,
+        [string]$Resources,
+        [string]$Note
     )
+    $lines = @(
+        "compile-time = $([DateTime]::UtcNow.ToString('o'))",
+        "commit       = $head",
+        "worktree     = $tree",
+        "exe-size     = $ExeSize",
+        "sha256       = $ExeHash",
+        "embedded-resources = $Resources",
+        "package-selfcheck = $Selfcheck",
+        "configuration = $Configuration",
+        "framework-path-override = $(if ($FrameworkPathOverride -eq '') { 'default' } else { $FrameworkPathOverride })",
+        "single-file packaging = applied (single assembly; no satellite dll, no NuGet, no ILMerge)",
+        $Note
+    )
+    if ($tree -eq 'dirty') { $lines += 'Warning: worktree is dirty; BUILD.txt records it verbatim' }
     Set-Content -LiteralPath (Join-Path $OutDir 'BUILD.txt') -Value $lines -Encoding UTF8
+}
+
+$fwDir = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+if ($CscPath -eq '') { $CscPath = Join-Path $fwDir 'csc.exe' }
+if (-not (Test-Path -LiteralPath $CscPath)) {
+    Write-Output 'BUILD: C# compiler unavailable; no build executed'
+    Write-BuildManifest -ExeSize 'n/a' -ExeHash 'n/a' -Selfcheck '未验证' `
+        -Resources 'none (build not executed)' -Note 'Warning: build not executed; status=未验证'
     exit 2
 }
 
-$project = Join-Path $repo 'src\QuadLite.App\QuadLite.App.csproj'
-$msbuildArgs = @($project, "/p:Configuration=$Configuration", '/v:minimal')
-if ($FrameworkPathOverride -ne '') {
-    $msbuildArgs += "/p:FrameworkPathOverride=$FrameworkPathOverride"
-}
-& $msbuildCmd.Source @msbuildArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Output "BUILD: failed with exit $LASTEXITCODE"
-    exit $LASTEXITCODE
+# WPF 引用程序集：优先参数化目录 / .NET Framework 4.8 参考程序集；
+# 回落系统运行时目录（WPF 子目录 + 父目录的 System.Xaml.dll）。
+$refRoot = ''
+$candidates = @()
+if ($FrameworkPathOverride -ne '') { $candidates += $FrameworkPathOverride }
+$pf86 = ${env:ProgramFiles(x86)}
+if ($pf86 -eq '' -or $pf86 -eq $null) { $pf86 = 'C:\Program Files (x86)' }
+$candidates += (Join-Path $pf86 'Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8')
+foreach ($candidate in $candidates) {
+    if ((Test-Path -LiteralPath (Join-Path $candidate 'PresentationFramework.dll')) -and
+        (Test-Path -LiteralPath (Join-Path $candidate 'System.Xaml.dll'))) {
+        $refRoot = $candidate
+        break
+    }
 }
 
-if (-not (Test-Path -LiteralPath $OutDir)) { New-Item -ItemType Directory -Path $OutDir | Out-Null }
-$lines = @(
-    "build_time_utc = $([DateTime]::UtcNow.ToString('o'))",
-    "commit         = $head",
-    "worktree       = $tree",
-    "configuration  = $Configuration",
-    "framework_path_override = $(if ($FrameworkPathOverride -eq '') { 'default' } else { $FrameworkPathOverride })",
-    "exe_size       = $exeSize",
-    "exe_sha256     = $exeHash",
-    "embedded_resources = none (B0 skeleton)",
-    "package_selfcheck = 未验证",
-    $singleFileLine,
-    'Warning: single-file packaging not implemented in B0'
-)
-Set-Content -LiteralPath (Join-Path $OutDir 'BUILD.txt') -Value $lines -Encoding UTF8
-Write-Output 'BUILD: msbuild finished; BUILD.txt written'
+$refArgs = @()
+if ($refRoot -ne '') {
+    foreach ($name in @('PresentationFramework.dll', 'PresentationCore.dll',
+                        'WindowsBase.dll', 'System.Xaml.dll')) {
+        $refArgs += ('/r:' + (Join-Path $refRoot $name))
+    }
+} else {
+    $wpfDir = Join-Path $fwDir 'WPF'
+    foreach ($name in @('PresentationFramework.dll', 'PresentationCore.dll', 'WindowsBase.dll')) {
+        $refArgs += ('/r:' + (Join-Path $wpfDir $name))
+    }
+    $refArgs += ('/r:' + (Join-Path $fwDir 'System.Xaml.dll'))
+}
+$refArgs += '/r:System.dll'
+$refArgs += '/r:System.Core.dll'
+
+$sources = @()
+foreach ($layer in @('QuadLite.Core', 'QuadLite.Fs', 'QuadLite.App', 'QuadLite.Host')) {
+    $pattern = Join-Path $repo ('src\' + $layer + '\*.cs')
+    $sources += @(Get-ChildItem -Path $pattern -ErrorAction Stop | ForEach-Object { $_.FullName })
+}
+# 当前四层合计 98 个 .cs（Core 78 + Fs 5 + App 12 + Host 3）。
+# 这里只防「源码集意外为空 / 漏收某层」，不把具体文件数写成硬契约。
+if ($sources.Count -lt 90) {
+    Write-Output "BUILD: unexpected source count $($sources.Count)"
+    Write-BuildManifest -ExeSize 'n/a' -ExeHash 'n/a' -Selfcheck '未验证' `
+        -Resources 'none (source set incomplete)' -Note 'Warning: build aborted; status=未验证'
+    exit 2
+}
+
+$cscArgs = @('/nologo', '/target:winexe', '/langversion:5', '/codepage:65001',
+             '/optimize+', '/debug-', '/platform:anycpu')
+if ($Configuration -ne 'Release') {
+    $cscArgs = @('/nologo', '/target:winexe', '/langversion:5', '/codepage:65001',
+                 '/debug+', '/platform:anycpu')
+}
+$cscArgs += ('/out:' + $exePath)
+$cscArgs += ('/win32manifest:' + $manifestPath)
+$cscArgs += $refArgs
+$cscArgs += $sources
+
+& $CscPath @cscArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Output "BUILD: compile failed with exit $LASTEXITCODE"
+    Write-BuildManifest -ExeSize 'n/a' -ExeHash 'n/a' -Selfcheck '未验证' `
+        -Resources 'none (compile failed)' -Note 'Warning: compile failed; status=未验证'
+    exit $LASTEXITCODE
+}
+if (-not (Test-Path -LiteralPath $exePath)) {
+    Write-Output 'BUILD: compiler returned 0 but exe is missing'
+    Write-BuildManifest -ExeSize 'n/a' -ExeHash 'n/a' -Selfcheck '未验证' `
+        -Resources 'none (exe missing)' -Note 'Warning: exe missing; status=未验证'
+    exit 2
+}
+
+$exeItem = Get-Item -LiteralPath $exePath
+$exeHash = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash
+$satellites = @(Get-ChildItem -LiteralPath $OutDir -Filter 'QuadLite.*.dll' -ErrorAction SilentlyContinue)
+if ($satellites.Count -gt 0) {
+    $selfcheck = 'FAIL (satellite assemblies present)'
+} else {
+    $selfcheck = 'PASS (single assembly, BUILD.txt only companion)'
+}
+if ($SingleFile) { $note = 'Note: -SingleFile explicitly requested; single assembly is already the default.' }
+else { $note = 'Note: real WPF host built; shell COM / native menu / thumbnails / DPI evidence still 未验证.' }
+
+Write-BuildManifest -ExeSize $exeItem.Length -ExeHash $exeHash -Selfcheck $selfcheck `
+    -Resources 'none (all four layers compiled into QuadLite.exe)' -Note $note
+Write-Output "BUILD: QuadLite.exe written ($($exeItem.Length) bytes); BUILD.txt collected"
 exit 0

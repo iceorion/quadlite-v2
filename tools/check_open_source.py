@@ -42,6 +42,10 @@ REQUIRED = [
     "tools/check_list_specs.py", "tools/check_menu_specs.py",
     "tools/check_icon_specs.py", "tools/check_selftest_specs.py",
     "tools/check_release_specs.py",
+    "tools/check_realization_specs.py",
+    "src/QuadLite.Host/Program.cs", "src/QuadLite.Host/MainWindow.cs",
+    "src/QuadLite.Host/SelftestRunner.cs",
+    "src/QuadLite.Host/QuadLite.Host.csproj", "src/QuadLite.Host/app.manifest",
     "src/QuadLite.Core/PathKey.cs", "src/QuadLite.Core/OperationCoordinator.cs",
     "src/QuadLite.Core/LayoutMath.cs", "src/QuadLite.Core/FilterRules.cs",
     "src/QuadLite.Core/MenuHostRules.cs",
@@ -59,6 +63,7 @@ REQUIRED = [
     "docs/adr/ADR-v2-004.md", "docs/adr/ADR-v2-005.md", "docs/adr/ADR-v2-006.md",
     "docs/adr/ADR-v2-007.md", "docs/adr/ADR-v2-008.md",
     "docs/adr/ADR-v2-009.md", "docs/adr/ADR-v2-010.md",
+    "docs/adr/ADR-v2-011.md",
     "docs/negative-controls.md", "docs/run-ledger.md",
 ]
 
@@ -192,12 +197,14 @@ if verb_hits:
 else:
     ok("产品程序集 verb 查询命中 0 次（%d 个 .cs 实测，§7.1 menu-no-verb-scan）" %
        len(src_cs_files))
-na("真实 WPF 窗口 / XAML / 消息循环、真实列表控件与拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、MSBuild 应用构建、单文件出包、真实产品 exe 形态 --selftest、BUILD.txt 采集与 --bench 采样：未实跑，标「未验证」（见 ADR-v2-002 / ADR-v2-004 / ADR-v2-005 / ADR-v2-006 / ADR-v2-007 / ADR-v2-008 / ADR-v2-009 / ADR-v2-010）")
+na("R1 起 CI 已编译真实 WPF 单文件 exe 并实跑产品 --selftest 与 BUILD.txt 七字段采集；"
+   "窗口仍是最小骨架：列表控件 / 拖放 / 系统原生菜单 COM 宿主 / IFileOperation 真实绑定 / "
+   "图标缩略图渲染 / MSBuild 出包路径 / --shot --bench 诊断装置 / 单实例后两段仍未实现或未验证（见 ADR-v2-011）")
 na("H1–H6 真实取证（零写入三段取证、高 DPI 四档、兼容矩阵、WER 读法、性能采样、OV 签名）与 C4 带杀软 VM：人工 / 发布线项（未验证）；B8 只核对可静态判定的发布线契约，M3 不成立")
 na("同手感：人工验收项（未验证）")
 
 src_cs = [p for p in files if p.suffix == ".cs" and "src" in p.parts]
-print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3/B4/B5/B6/B7/B8 规则与状态内核；真实 shell 调用点、NativeMenuHost、图标缩略图渲染、发布线真实取证、产品 exe --selftest 与 WPF 窗口未接入）" % len(src_cs))
+print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3/B4/B5/B6/B7/B8 规则与状态内核 + R1 Host 真实宿主 3 个 .cs；真实 shell 调用点、NativeMenuHost、图标缩略图渲染、发布线真实取证与列表控件仍未接入）" % len(src_cs))
 print("\n文件数=%d，总字节=%d" % (len(files), sum(p.stat().st_size for p in files)))
 if errors:
     print("verdict: RED (%d)" % len(errors))

@@ -1,6 +1,6 @@
 # QuadLite
 
-一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿 → B0 工程骨架与检查链 → B1 L0 纯函数层 → B2 编排与适配器层 → B3 外壳状态内核 → B4 列表视图规则层 → B5 系统原生右键菜单规则层 → B6 图标 / 缩略图规则层 → B7 自测 / 门卡总表 / 出包自检规则层 → **B8 发布线 C4 + H1–H6 规则层**。目前没有可运行的 WPF 应用，也没有可下载版本。
+一个面向 Windows 的便携多窗格文件浏览器**规格项目**。仓库按 docs-first / spec-first 路线推进：规格定稿 → B0 工程骨架与检查链 → B1 L0 纯函数层 → B2 编排与适配器层 → B3 外壳状态内核 → B4 列表视图规则层 → B5 系统原生右键菜单规则层 → B6 图标 / 缩略图规则层 → B7 自测 / 门卡总表 / 出包自检规则层 → **B8 发布线 C4 + H1–H6 规则层** → **R1 真实实现第一批（单文件 WPF 宿主 / 产品 `--selftest` / 真实构建链）**。R1 起 CI 已能编译出真实 `QuadLite.exe` 并运行它的 `--selftest`，但窗口只是最小骨架，浏览 / 搬运 / 系统原生菜单 / 图标缩略图渲染均未实现；**没有可下载版本，M1 / M2 / M3 均不成立**。
 
 - 许可证：MIT（见 `LICENSE`）
 - 规范：`design-v2.md`（需求、架构、接口与验收判据的唯一权威文档）
@@ -12,11 +12,11 @@
 |---|---|
 | 规格 | `design-v2.md` v1.2 已定稿（B0 修订检查链脚本名、确认三项待决） |
 | 工程骨架 | B0 已完成：SDK 风格 csproj、构建脚本、检查链、CI、证据闭环 |
-| 代码 | `src/QuadLite.Core/` 78 个零 I/O 类型（B1 的 13 个 L0 + B2 的 10 个编排 / 端口 + B3 的 9 个布局 / 导航 / 会话 + B4 的 11 个列表视图规则 + B5 的 8 个菜单规则 + B6 的 8 个图标缩略图规则 + B7 的 9 个自测 / 出包规则 + B8 的 10 个发布线规则）；`src/QuadLite.Fs/` 5 个适配器；`src/QuadLite.App/` 12 个状态类型（无窗口 / XAML） |
+| 代码 | `src/QuadLite.Core/` 78 个零 I/O 类型（B1 的 13 个 L0 + B2 的 10 个编排 / 端口 + B3 的 9 个布局 / 导航 / 会话 + B4 的 11 个列表视图规则 + B5 的 8 个菜单规则 + B6 的 8 个图标缩略图规则 + B7 的 9 个自测 / 出包规则 + B8 的 10 个发布线规则）；`src/QuadLite.Fs/` 5 个适配器；`src/QuadLite.App/` 12 个状态类型（无窗口 / XAML）；`src/QuadLite.Host/` 3 个真实宿主类型（进程入口 / 最小 WPF 窗口 / 产品自测，R1 起由 CI 编译成单 exe） |
 | C# runner | 71 组门卡（14 组 L0 + 7 组 B2 + 6 组 B3 + 6 组 B4 + 10 组 B5 + 8 组 B6 + 10 组 B7 + 10 组 B8），CI 上以 C# 5 编译实跑，B7 起输出门卡总表报告（B8 起 130 行）；B1（run `42022736600` / `dcea585`）、B2（run `42035381476` / `1066b0d`）、B3（run `42040769639` / `378432a`，十步全 `success`）、B4（run `42224901915` / `8ed8b5b`，十一步全 `success`）、B5（run `42232312609` / `aa63769`，十二步全 `success`）、B6（run `42343839222` / `c0529da`，十三步全 `success`）与 B7（run `42357787519` / `266ca65`，十四步全 `success`）均已通过；B8（run `42361122709` / `97fd31d`，十五步全 `success`）亦已通过，含 `check-release-specs`、71 组 runner 与 12 文件 App 库编译；本机只跑 Python 静态门卡，逐批结论见 `docs/run-ledger.md` |
 | 布局方案 | 规格 v1.2 的 1/2/3/4 四档；用户已拍板**保持四档**，自定义二叉分割树方案不采纳，规格一字未改（见 `docs/adr/ADR-v2-008.md`；撤回的改版见 `ADR-v2-005.md`） |
 | 文件操作能力 | **尚不能搬运文件**：真实 `IFileOperation` 调用点隔离在注入端口，成熟 COM 绑定待接入，标「未实现 / 未验证」，见 `docs/adr/ADR-v2-004.md` |
-| 可下载版本 | 无；真实 WPF 窗口 / XAML / 消息循环、系统原生菜单 COM 宿主与图标缩略图渲染未实现，应用构建与单文件出包尚未实跑（未验证）；CI 编译并运行单测 runner、另把 Fs 适配器与 App 状态内核分别编译成 library（不运行） |
+| 可下载版本 | 无。R1 起 CI 用系统 C# 编译器把四层 98 个 .cs 一次编成一个 `QuadLite.exe`（零 NuGet、零合并工具、PerMonitorV2 manifest），并实跑产品 exe 的 `--selftest`；窗口只有四档槽位文字与如实的状态栏，真实 `IFileOperation` COM 绑定、目录枚举 / 列表控件 / 拖放、系统原生菜单宿主、图标缩略图渲染、单实例后两段仍未实现 / 未验证；MSBuild 出包路径、真实 shell 行为与 H1–H6 / C4 取证也未验证。既有 CI 仍编译并运行单测 runner、把 Fs 适配器与 App 状态内核分别编成 library（不运行） |
 
 规格中的能力描述是**首版的设计目标与验收判据**，不是已发布功能的宣称。里程碑与 MVP 定义见 `design-v2.md` §8.4。
 
@@ -28,8 +28,8 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 |---|---|
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
-| `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs` + B5 `check-menu-specs` + B6 `check-icon-specs` + B7 `check-selftest-specs` + B8 `check-release-specs`，共十二个）+ 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success` |
+| `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs` + B5 `check-menu-specs` + B6 `check-icon-specs` + B7 `check-selftest-specs` + B8 `check-release-specs` + R1 `check-realization-specs`，共十三个）+ 正 / 负样本夹具 |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success`；R1 起再加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步（真编译单 exe + 实跑产品 `--selftest`，run 号待回填） |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -45,11 +45,12 @@ python tools/check_menu_specs.py
 python tools/check_icon_specs.py
 python tools/check_selftest_specs.py
 python tools/check_release_specs.py
+python tools/check_realization_specs.py
 python tools/run_tests.py
 python tools/check_open_source.py
 ```
 
-`run_tests.py` 跑正样本、63 条负向对照（故意破坏后门卡必须变红）与合规扫描，共 75 组，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行，B2 起再加 `check-fs-specs` 与 Fs 适配器库编译，B3 起再加 `check-shell-specs` 与 App 外壳状态内核库编译，B4 起再加 `check-list-specs`，B5 起再加 `check-menu-specs`，B6 起再加 `check-icon-specs`（本机与 CI 均实测绿，run `42343839222` / head `c0529da`），B7 起再加 `check-selftest-specs`（本机与 CI 均实测绿，run `42357787519` / head `266ca65`），B8 起再加 `check-release-specs`（本机与 CI 均实测绿，run `42361122709` / head `97fd31d`）。真实 WPF 窗口、列表控件、拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、应用构建、单文件出包与 exe 形态 `--selftest` 仍未实跑，结论记「未验证」，见 `docs/adr/ADR-v2-002.md`、`ADR-v2-004.md`、`ADR-v2-005.md`、`ADR-v2-006.md`、`ADR-v2-007.md`、`ADR-v2-008.md`、`ADR-v2-009.md` 与 `ADR-v2-010.md`。
+`run_tests.py` 跑正样本、76 条负向对照（故意破坏后门卡必须变红，含 13 条 R1 真实宿主契约）与合规扫描，共 89 组，末行输出 `verdict:`，退出码 = 失败数。B0 的四个 Python 门卡首次实跑已通过（run `42013589562`，head `96a5fa4`，结论 `success`）；B1 起 CI 另加 `check-core-specs` 与 C# runner 编译运行，B2 起再加 `check-fs-specs` 与 Fs 适配器库编译，B3 起再加 `check-shell-specs` 与 App 外壳状态内核库编译，B4 起再加 `check-list-specs`，B5 起再加 `check-menu-specs`，B6 起再加 `check-icon-specs`（本机与 CI 均实测绿，run `42343839222` / head `c0529da`），B7 起再加 `check-selftest-specs`（本机与 CI 均实测绿，run `42357787519` / head `266ca65`），B8 起再加 `check-release-specs`（本机与 CI 均实测绿，run `42361122709` / head `97fd31d`）。R1 起真实单文件 exe 的编译与产品 exe 形态 `--selftest` 已由 CI 实跑（见下节），但窗口只是骨架：列表控件、拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、真实 `IFileOperation` 绑定、MSBuild 出包路径与 H1–H6 / C4 取证仍未实现或未验证，见 `docs/adr/ADR-v2-011.md`。
 
 ## B1 L0 纯函数层
 
@@ -171,6 +172,21 @@ C# runner 61 → **71 组**，报告 120 → **130 行**；`csharp-app-compile` 
 
 **偏差照实登记**：§8.4 的 M3 判据是「H1–H6 逐项有证据；C4 缺位显式写『未做』」，而本批交付的是发布线的**可判定契约**，六阶段真实取证、C4 带杀软 VM、OV 签名与发布记录一项都没有。`ReleaseState.CurrentM3Verdict()` 明确返回 `EvidenceMissing`、`IsPublishable() == false`——**M3 不成立**，不把静态门卡全绿写成可发布。真实产品 exe 与 WPF 应用仍未接入，详见 ADR-010 D6。**CI 首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行。本机不执行 C# 编译器，该层以 CI 远端实测为准；日志端点匿名 403，未读取日志原文。
 
+## R1 真实实现第一批（规格外实现批次）
+
+B0–B8 全部是规则层与状态内核；用户拍板「开始接真实实现」后启用 **R 系列**（Realization，规格 `design-v2.md` v1.2 一字未改、不写进 §8.1 批次表）。R1 只解决「可运行载体」：
+
+| 项 | 交付 |
+|---|---|
+| `src/QuadLite.Host/` | `Program.cs`（STAThread 入口 / `CliArgs` 分派 / 单实例 Mutex 第一段 / `Application.Run`）、`MainWindow.cs`（纯 C# 最小 WPF 窗口，四档槽位取自 `LayoutMath`，状态栏逐项如实写未实现）、`SelftestRunner.cs`（产品 `--selftest` 复用 B7/B8 状态内核 + 10 组运行时断言）、csproj + PerMonitorV2 manifest |
+| `build.ps1` | 从 B0 骨架改为真实单文件构建：系统 C# 编译器以 `/target:winexe /langversion:5` 把四层 98 个 .cs 一次编成 `QuadLite.exe`，显式引用 WPF 四个程序集，采集 `BUILD.txt` 七字段（真实大小 / SHA256 / 脏树 Warning） |
+| CI 三步 | `check-realization-specs`（10 项静态契约）、`real-exe-build`（真编译 + 七字段校验）、`real-exe-selftest`（运行 exe `--selftest`，断言 ≥100 行 / 末行 `verdict: GREEN` / 退出码 0） |
+| 门卡与负向对照 | `tools/check_realization_specs.py`；`run_tests.py` 扩到 89 组 / 76 条负向（13 条 R1 对照逐条实测变红） |
+
+**偏差照实登记**：R1 交付的是「能编译、能启动、能自测的真实 exe 骨架」，不是 MVP。窗口没有目录枚举与列表控件，不能浏览、不能搬运、不能弹系统原生菜单、不能渲染图标；`IShellTransport` 仍无真实实现，单实例只落地 Mutex 第一段；`--shot` / `--bench` / `--dumpmenu` 诊断装置只输出「未实现 / 未验证」；MSBuild 出包路径、真实 shell 行为、H1–H6 与 C4 全部未验证。本机不执行 C# 编译器，真实编译与 `--selftest` 结论以 CI 远端实测为准。`ReleaseState.IsPublishable() == false`，**M1 / M2 / M3 均不成立**，完整偏差见 `docs/adr/ADR-v2-011.md`。
+
+后续顺序：**R2** 接真实 `IFileOperation` 托管 COM 绑定与 Fs transport（同时把 B2/B5/B6 门卡中「产品程序集零手写 COM」修订为分层口径）；**R3 起**接原生菜单宿主、图标渲染与浏览 / 搬运 UI。顺序较上一轮口头提议调整为先做载体，理由见 ADR-011 D2。
+
 ## 首版设计目标（摘要）
 
 - 1/2/3/4 窗格布局，每窗格独立标签、历史与视图偏好；便携配置只认程序同级 `data\`。
@@ -206,6 +222,7 @@ C# runner 61 → **71 组**，报告 120 → **130 行**；`csharp-app-compile` 
 | `docs/adr/ADR-v2-008.md` | B6 设计决策记录（布局拍板保持四档、图标缩略图规则层、真实渲染推迟、偏差登记） |
 | `docs/adr/ADR-v2-009.md` | B7 设计决策记录（自测装置、命令行契约修订、门卡总表逐项比对、真实出包推迟、偏差登记） |
 | `docs/adr/ADR-v2-010.md` | B8 设计决策记录（发布线阶段链、证据等级纪律、C4 零误报门槛、M3 不成立、偏差登记） |
+| `docs/adr/ADR-v2-011.md` | R1 设计决策记录（真实宿主层、单文件构建链、顺序调整、沿用 / 修订 / 作废、M1–M3 仍不成立、偏差登记） |
 | `docs/negative-controls.md` | 不变量 → 负向对照用例 → 应红门卡；写入例外清单；未验证项 |
 | `docs/run-ledger.md` | 每批一行，记功能提交 `head_sha` |
 | `LICENSE` | MIT 许可证 |
@@ -218,4 +235,4 @@ C# runner 61 → **71 组**，报告 120 → **130 行**；`csharp-app-compile` 
 
 ## 路线
 
-规格定稿（S3）→ B0 骨架与检查链 → B1 L0 纯函数 → B2 编排 / 适配器 → B3 外壳状态内核 → B4 列表视图规则层 → B5 系统原生右键菜单规则层 → B6 图标 / 缩略图规则层 → B7 自测 / 出包自检规则层 → B8 发布线 C4 + H1–H6 规则层 →（B8 之后，可选）一次一个功能域推进：门卡 → 负向对照 → 单测 → 账本 → 设计决策记录。每批提交前执行 `design-v2.md` §10 开源合规清单。
+规格定稿（S3）→ B0 骨架与检查链 → B1 L0 纯函数 → B2 编排 / 适配器 → B3 外壳状态内核 → B4 列表视图规则层 → B5 系统原生右键菜单规则层 → B6 图标 / 缩略图规则层 → B7 自测 / 出包自检规则层 → B8 发布线 C4 + H1–H6 规则层 → **R1 真实实现第一批（单文件 WPF 宿主 / 产品 `--selftest` / 真实构建链）** → R2 真实 COM 绑定 → R3 起原生菜单 / 图标渲染 / 浏览搬运 UI →（一次一个功能域）门卡 → 负向对照 → 单测 → 账本 → 设计决策记录。每批提交前执行 `design-v2.md` §10 开源合规清单。

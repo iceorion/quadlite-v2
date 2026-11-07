@@ -12,8 +12,10 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 七类系统原生菜单静态契约负向对照；B6 起增加 check-icon-specs 正向 +
 七类图标缩略图静态契约负向对照；B7 起增加 check-selftest-specs 正向 +
 八类自测 / 出包静态契约负向对照；B8 起增加 check-release-specs 正向 +
-十类发布线静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
-runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 形态 --selftest 仍未接入。
+十类发布线静态契约负向对照；R1 起增加 check-realization-specs 正向 +
+十类真实宿主静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 由 CI 的
+real-exe-build / real-exe-selftest 两步编译并实跑 --selftest。
 """
 import shutil
 import subprocess
@@ -543,6 +545,100 @@ def mutate_cs6_release(dst):
                  encoding="utf-8")
 
 
+def negative_realization_specs(label, mutate):
+    """临时副本里破坏一条 R1 真实实现契约，check-realization-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe", "dist"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_realization_specs.py"),
+                       "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-realization-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_host_program(dst):
+    (dst / "src" / "QuadLite.Host" / "Program.cs").unlink()
+
+
+def mutate_delete_host_window(dst):
+    (dst / "src" / "QuadLite.Host" / "MainWindow.cs").unlink()
+
+
+def mutate_delete_host_selftest(dst):
+    (dst / "src" / "QuadLite.Host" / "SelftestRunner.cs").unlink()
+
+
+def mutate_drop_message_loop(dst):
+    p = dst / "src" / "QuadLite.Host" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("return app.Run(window);", "return 0;")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_drop_selftest_branch(dst):
+    p = dst / "src" / "QuadLite.Host" / "Program.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("if (cli.Mode == CliMode.SelfTest)", "if (false)")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_revert_build_skeleton(dst):
+    p = dst / "build.ps1"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n# NOT IMPLEMENTED (B7)\n", encoding="utf-8")
+
+
+def mutate_drop_ci_selftest(dst):
+    p = dst / ".github" / "workflows" / "ci.yml"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("real-exe-selftest", "real-exe-disabled")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_host_io(dst):
+    p = dst / "src" / "QuadLite.Host" / "Program.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\nusing System.IO;  // negative control\n", encoding="utf-8")
+
+
+def mutate_host_cs6(dst):
+    p = dst / "src" / "QuadLite.Host" / "MainWindow.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class BadHost { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
+def mutate_delete_host_csproj(dst):
+    (dst / "src" / "QuadLite.Host" / "QuadLite.Host.csproj").unlink()
+
+
+def mutate_spec_r1_drift(dst):
+    p = dst / "design-v2.md"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n| R1 | 真实宿主（擅自写进规格） | host-* |\n", encoding="utf-8")
+
+
+def mutate_drop_r1_adr(dst):
+    (dst / "docs" / "adr" / "ADR-v2-011.md").unlink()
+
+
+def mutate_host_satellite_reference(dst):
+    p = dst / "src" / "QuadLite.Host" / "QuadLite.Host.csproj"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace(
+        "</Project>",
+        '  <ItemGroup><ProjectReference Include="..\\QuadLite.Core\\QuadLite.Core.csproj" /></ItemGroup>\n</Project>')
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -561,7 +657,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + B1 + B2 + B3 + B4 + B5 + B6 + B7 + B8)")
+    print("runner: zero-dependency gate self-test (B0 + ... + B8 + R1 real host)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -573,6 +669,7 @@ def main():
     expect_green("check-icon-specs", script("check_icon_specs.py"))
     expect_green("check-selftest-specs", script("check_selftest_specs.py"))
     expect_green("check-release-specs", script("check_release_specs.py"))
+    expect_green("check-realization-specs", script("check_realization_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -645,6 +742,19 @@ def main():
     negative_release_specs("missing-release-state", mutate_delete_release_state)
     negative_release_specs("app-io", mutate_b8_app_io)
     negative_release_specs("cs6-syntax", mutate_cs6_release)
+    negative_realization_specs("missing-program", mutate_delete_host_program)
+    negative_realization_specs("missing-window", mutate_delete_host_window)
+    negative_realization_specs("missing-selftest", mutate_delete_host_selftest)
+    negative_realization_specs("no-message-loop", mutate_drop_message_loop)
+    negative_realization_specs("no-selftest-branch", mutate_drop_selftest_branch)
+    negative_realization_specs("build-skeleton-drift", mutate_revert_build_skeleton)
+    negative_realization_specs("ci-selftest-removed", mutate_drop_ci_selftest)
+    negative_realization_specs("host-io", mutate_host_io)
+    negative_realization_specs("host-cs6-syntax", mutate_host_cs6)
+    negative_realization_specs("missing-csproj", mutate_delete_host_csproj)
+    negative_realization_specs("spec-batch-drift", mutate_spec_r1_drift)
+    negative_realization_specs("missing-adr", mutate_drop_r1_adr)
+    negative_realization_specs("satellite-project-reference", mutate_host_satellite_reference)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

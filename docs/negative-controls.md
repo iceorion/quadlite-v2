@@ -201,8 +201,8 @@ B8 的 10 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 | H4 崩溃摘要真实写入 / WER 实际读法、H5 性能四预算实测值 | 发布线 H4 / H5 | **未实现 / 未验证**（B8 只判定五字段脱敏、七列齐全、只报数不判定） |
 | H6 免费 OV 证书 / `signtool sign` + `verify /pa` / 指纹时间戳进 `BUILD.txt` | 发布线 H6 | **未实现 / 未验证**（B8 只判定链路三步、未签名 Warning 与不得冒充通过） |
 | C4 带杀软 VM / 第二台机器、单文件 vs 多文件对比、零误报结论 | 发布线 C4 | **未实现 / 未验证**；B8 把 `AVcount≠0 + 实际扫描` 写成可判定门槛，C4 缺位尚未在发布记录显式声明 |
-| 发布线规则层（`release-*` 十组） | B8 C# runner（CI 编译实跑） | 待 CI 实跑；本机 75 组自测 / 63 条负向对照实测绿 |
-| App 发布线状态内核库编译 | CI `csharp-app-compile`（12 个 .cs） | 待 CI 实跑；只编译、不运行 |
+| 发布线规则层（`release-*` 十组） | B8 C# runner（CI 编译实跑） | CI 实测通过：run `42361122709` / head `97fd31d`，`csharp-runner` 步骤 `success` ⇒ 退出码 0 ⇒ 71 组 `ok=True`；本机 75 组自测 / 63 条负向对照实测绿 |
+| App 发布线状态内核库编译 | CI `csharp-app-compile`（12 个 .cs） | CI 实测通过：run `42361122709` 该步骤 `success`；只编译、不运行；本机不执行 C# 编译器 |
 | M3 可发布（H1–H6 逐项有证据；C4 缺位显式写「未做」） | 发布记录判定 | **不成立**：六阶段真实证据全无，`ReleaseState.IsPublishable() == false`（见 `ADR-v2-010` D6） |
 
 ## 远端验证（CI）
@@ -223,7 +223,7 @@ B6 起 CI 再增加 `check-icon-specs`：`csharp-runner` 与 `csharp-app-compile
 
 B7 起 CI 再增加 `check-selftest-specs`；`csharp-runner` 的编译命令自本批起同时包含 `src/QuadLite.App/*.cs`（此前只编 Core + Tests），因为 runner 的 120 行报告由 `SelftestState` 装配：`csharp-runner` 扩到 61 组（含 10 组 B7），`csharp-app-compile` 编译 10 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 64 组 / 53 条负向对照，本机实测绿。门卡总表与 §7.1 的 50 项由 `check-selftest-specs` 逐项比对，删一项即判红；`CliArgs` 复用契约表的三处委托也由静态门卡核对。真实产品 exe 的 `--selftest`、`BUILD.txt` 采集、单文件出包、`--bench` 采样、崩溃日志写入与零写入三段取证不在 CI 内，相关项维持「未验证」。**首次实跑已通过**：run `42357787519`（head `266ca65`，含 B7 功能提交 `864eff1` 与账本回填提交 `266ca65`），十四个门卡 / 编译步骤逐项 `success`，其中 `check-selftest-specs` `success`、`csharp-runner` 退出码 0 ⇒ 61 组 `ok=True`、`verdict: GREEN`，`csharp-app-compile`（10 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通。逐批结论见 `docs/run-ledger.md`。
 
-B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 10 组 B8 发布线），报告 120 → 130 行，`csharp-app-compile` 编译 12 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 75 组 / 63 条负向对照，本机实测绿。§8.3 依赖链七节点、DPI 四档与降级链由 `check-release-specs` **解析规格原文逐项比对**，改序或改数值即判红；C4 零误报门槛与 M3 证据闭环另由第 6 / 7 项核对。H1–H6 真实取证、C4 带杀软 VM、OV 签名与产品 exe 出包都不在 CI 内，相关项维持「未验证」，M3 不成立。**B8 的 `check-release-specs`、71 组 C# runner 与 12 个 App 状态内核库编译待 CI 实跑**，本机不执行 C# 编译器，不把静态绿写成算法跑通或可发布。逐批结论见 `docs/run-ledger.md`。
+B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 10 组 B8 发布线），报告 120 → 130 行，`csharp-app-compile` 编译 12 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 75 组 / 63 条负向对照，本机实测绿。§8.3 依赖链七节点、DPI 四档与降级链由 `check-release-specs` **解析规格原文逐项比对**，改序或改数值即判红；C4 零误报门槛与 M3 证据闭环另由第 6 / 7 项核对。H1–H6 真实取证、C4 带杀软 VM、OV 签名与产品 exe 出包都不在 CI 内，相关项维持「未验证」，M3 不成立。**首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通或可发布。逐批结论见 `docs/run-ledger.md`。
 
 ## 写入例外清单
 

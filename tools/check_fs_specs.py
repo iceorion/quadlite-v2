@@ -7,14 +7,18 @@ B2 静态契约门卡：Fs 层适配器与端口绑定。
   python tools/check_fs_specs.py                 # 扫仓库
   python tools/check_fs_specs.py --root <目录>   # 负向对照时指向临时副本
 
-本脚本只核对「文件齐备 / 端口绑定 / 不手写 COM vtable / shell 调用点隔离 /
-C# 5 语法子集」这些静态事实。真实 IFileOperation、系统剪贴板与 watcher 的运行期
-行为不在本门卡范围，一律标「未验证」（见 docs/adr/ADR-v2-004.md）。
+本脚本只核对「文件齐备 / 端口绑定 / 分层 COM 口径 / shell 调用点隔离 /
+C# 5 语法子集」这些静态事实。R2 起 COM 声明只允许集中在唯一白名单文件
+（见 tools/com_policy.py 与 docs/adr/ADR-v2-012.md），其余层保持零声明。
+真实 IFileOperation、系统剪贴板与 watcher 的运行期行为不在本门卡范围，
+一律标「未验证」（见 docs/adr/ADR-v2-004.md 与 ADR-v2-012.md）。
 """
 import argparse
 import re
 import sys
 from pathlib import Path
+
+import com_policy
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -37,7 +41,8 @@ PORT_BINDINGS = {
 }
 
 # 规格 §5.2：COM 声明使用成熟绑定，不手写 vtable。
-NO_HAND_WRITTEN_COM = re.compile(r"\bComImport\b|\bInterfaceType\b|\[\s*Guid\s*\(")
+# R2 起改为分层口径，模式与白名单统一在 tools/com_policy.py 单点定义。
+NO_HAND_WRITTEN_COM = com_policy.HAND_WRITTEN_COM
 
 CS6_PLUS = [
     ("string interpolation", re.compile(r'\$"')),
@@ -90,16 +95,20 @@ def main():
     else:
         ok("端口绑定齐备（%d 个端口）" % len(PORT_BINDINGS))
 
-    # 3. 不手写 COM vtable
+    # 3. 分层 COM 口径（R2）：声明只允许在唯一白名单文件；其余 Fs 文件零声明
     com_hits = []
+    raw_hits = []
     for fname, text in sorted(texts.items()):
-        m = NO_HAND_WRITTEN_COM.search(text)
-        if m:
-            com_hits.append("%s: `%s`" % (fname, m.group(0)))
-    if com_hits:
-        bad("检测到手写 COM 声明：%s" % "; ".join(com_hits))
+        rel = "src/QuadLite.Fs/" + fname
+        hit = com_policy.declaration_hit(rel, text)
+        if hit:
+            com_hits.append("%s: `%s`" % (fname, hit))
+        if com_policy.RAW_VTABLE.search(text) or com_policy.VERB_SCAN.search(text):
+            raw_hits.append(fname)
+    if com_hits or raw_hits:
+        bad("分层 COM 口径被破坏：%s" % "; ".join(com_hits + raw_hits))
     else:
-        ok("无手写 COM vtable（%d 个 .cs）" % len(files))
+        ok("分层 COM 口径（%d 个 .cs，声明仅集中在 ShellComInterop.cs）" % len(files))
 
     # 4. shell 调用点隔离在注入的 transport 上
     shell = texts.get("ShellFileOperator.cs", "")

@@ -12,8 +12,9 @@ CI 真跑 / 单程序集一致性 / 分层纪律 / C# 5 / 规格未改 / 证据�
 
 真实 exe 的编译与 --selftest 运行由 CI 的 real-exe-build / real-exe-selftest
 两步实测；本机不执行 C# 编译器，一律标「未验证」。
-真实 IFileOperation COM 绑定、NativeMenuHost、图标缩略图渲染、H1–H6 取证与
-C4 带杀软 VM 均未实现 / 未验证，M1 与 M3 均不成立（见 docs/adr/ADR-v2-011.md）。
+R2 起 Fs 层已接入 IFileOperation 托管 COM 声明与 transport，但运行期完全未验证；
+NativeMenuHost、图标缩略图渲染、H1–H6 取证与 C4 带杀软 VM 仍未实现 / 未验证，
+M1 与 M3 均不成立（见 docs/adr/ADR-v2-011.md 与 ADR-v2-012.md）。
 """
 import argparse
 import re
@@ -266,8 +267,9 @@ def main():
         ok("证据文档齐备（ADR-011 沿用/修订/作废 + 账本 R1 + 负向对照 R1 + README）")
 
     na("本机不执行 C# 编译器：真实 exe 编译与 --selftest 退出码以 CI 远端实测为准")
-    na("真实 IFileOperation COM 绑定 / NativeMenuHost / 图标缩略图渲染 / 拖放 / "
-       "H1–H6 取证 / C4 带杀软 VM：未实现或未验证；M1 与 M3 均不成立")
+    na("R2 起托管 COM 声明与 transport 已编入 Fs 层，运行期完全未验证；"
+       "NativeMenuHost / 图标缩略图渲染 / 拖放 / H1–H6 取证 / C4 带杀软 VM："
+       "未实现或未验证；M1 与 M3 均不成立")
 
     if errors:
         print("verdict: RED (%d)" % len(errors))

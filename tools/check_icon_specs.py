@@ -19,6 +19,8 @@ import re
 import sys
 from pathlib import Path
 
+import com_policy
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -251,18 +253,22 @@ def main():
     else:
         ok("App 状态内核零 I/O / 无测试替身 / 无手写 COM（%d 个 .cs）" % len(app_files))
 
-    # 8. 产品程序集不手写 COM、不引用测试替身
+    # 8. 产品程序集按 R2 分层口径核对 COM 声明，不引用测试替身
     product = sorted(p for p in (root / "src").rglob("*.cs") if p.is_file())
     product_bad = []
     for p in product:
+        rel = p.relative_to(root).as_posix()
         text = read(p)
         for label, rx in PRODUCT_FORBIDDEN:
+            # R2 分层口径：唯一白名单文件允许托管 COM 声明，其余禁令照旧
+            if label == "hand-written COM" and com_policy.is_declaration(rel):
+                continue
             if rx.search(text):
-                product_bad.append("%s: %s" % (p.relative_to(root).as_posix(), label))
+                product_bad.append("%s: %s" % (rel, label))
     if product_bad:
         bad("产品程序集触犯 B6 分层纪律：%s" % "; ".join(product_bad[:5]))
     else:
-        ok("产品程序集零手写 COM / 零测试替身引用（%d 个 .cs）" % len(product))
+        ok("产品程序集分层 COM 口径 / 零测试替身引用（%d 个 .cs）" % len(product))
 
     # 9. 规格与实现一致：设计文档仍是 v1.2，B6 判据声明未被擅自改动
     design = read(root / "design-v2.md")

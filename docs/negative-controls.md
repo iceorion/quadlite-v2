@@ -177,6 +177,24 @@ R1 的 13 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 真实 exe 的编译与 `--selftest` 退出码由 CI 远端实测，本机不执行 C# 编译器。
 R1 只把「可运行的载体」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-011.md` 偏差登记）。
 
+## R2 登记（真实 IFileOperation 绑定）
+
+| 不变量 | 负向对照用例 | 应变红的门卡 |
+|---|---|---|
+| 唯一白名单文件承载托管 COM 声明 | 临时副本删 `ShellComInterop.cs` / 往 `ShellTransport.cs` 或 Core 注入 `[ComImport]` | `check-transport-specs`（分层 COM 口径） |
+| 四个 GUID 与 SDK 头文件一致 | 临时副本改 `IID_IFileOperation` 末位 | `check-transport-specs`（SDK 权威 GUID） |
+| vtable 方法顺序 21 / 16 / 5 不变 | 临时副本改名 `Advise` | `check-transport-specs`（vtable 顺序） |
+| 禁止函数指针式 vtable | 临时副本注入 `Marshal.ReadIntPtr` | `check-transport-specs`（禁用模式） |
+| 独立 STA / 每次新实例 / try-finally 释放 | 临时副本删 `SetApartmentState` 或改掉 `ReleaseComObject` | `check-transport-specs`（执行契约） |
+| transport 默认关闭 | 临时副本把 `if (!enabled)` 改成 `if (false)` | `check-transport-specs`（默认关闭） |
+| 规格 §8.1 不写实现批次 | 临时副本往 `design-v2.md` 塞 `\| R2 \|` 行 | `check-transport-specs`（规格一致性） |
+| CI 与证据文档随批次落地 | 临时副本删 `check-transport-specs` 步骤 / 删 `ADR-v2-012.md` | `check-transport-specs`（构建链 / 证据文档） |
+| 真实 exe 编译链纳入 R2 | CI `csharp-fs-compile` + `real-exe-build`（只编译，不实例化 COM） | CI 远端实测 |
+
+R2 的 12 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；
+真实 shell 搬运的运行期行为由 H1–H6 真机取证，本机与 CI 均不实例化 COM。
+R2 只把「可编译、可静态判定的真实调用链」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-012.md` 偏差登记）。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -187,9 +205,9 @@ R1 只把「可运行的载体」接入证据闭环，**M1 / M2 / M3 仍不成�
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
 | 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 实测通过（run `42232312609`，本机未验证） |
-| 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（R1 后 98 个 .cs，命中 0 次；负向对照注入后必红） |
+| 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（R2 后 100 个 .cs，命中 0 次；负向对照注入后必红） |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
-| 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | 成熟 COM 绑定选定后接入 `IShellTransport`，另立 ADR | **未实现 / 未验证**（B2 偏差，见 `ADR-v2-004`） |
+| 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | R2 `ShellComInterop.cs` + `ShellTransport.cs` 声明并编译；运行期由 H1–H6 取证 | **声明与编译已落地、运行期未验证**（§5.2「成熟绑定」偏差见 `ADR-v2-012`） |
 | 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
 | 冲突 / 进度非模态面板 | B3 外壳（偏差，见 `ADR-v2-005` D6） | **未实现 / 未验证** |
 | 危险判级真实绑定 | 外壳注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
@@ -246,7 +264,7 @@ B7 起 CI 再增加 `check-selftest-specs`；`csharp-runner` 的编译命令自�
 
 B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 10 组 B8 发布线），报告 120 → 130 行，`csharp-app-compile` 编译 12 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 75 组 / 63 条负向对照，本机实测绿。§8.3 依赖链七节点、DPI 四档与降级链由 `check-release-specs` **解析规格原文逐项比对**，改序或改数值即判红；C4 零误报门槛与 M3 证据闭环另由第 6 / 7 项核对。H1–H6 真实取证、C4 带杀软 VM、OV 签名与产品 exe 出包都不在 CI 内，相关项维持「未验证」，M3 不成立。**首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通或可发布。逐批结论见 `docs/run-ledger.md`。
 
-R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 扩到 89 组 / 76 条负向对照。**首次实跑已通过**：run `42376298215`（head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 均 `success`，结论已回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定、列表控件、原生菜单、图标渲染与 H1–H6 取证一律维持「未验证」。
+R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 在 R1 时扩到 89 组 / 76 条负向对照；R2 起再扩到 102 组 / 88 条负向对照（新增 `check-transport-specs` 与 12 条托管 COM 契约对照），真实 `IFileOperation` 声明与 transport 编入 Fs 层但运行期完全未验证。**首次实跑已通过**：run `42376298215`（head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 均 `success`，结论已回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定、列表控件、原生菜单、图标渲染与 H1–H6 取证一律维持「未验证」。
 
 ## 写入例外清单
 

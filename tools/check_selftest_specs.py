@@ -21,6 +21,8 @@ import re
 import sys
 from pathlib import Path
 
+import com_policy
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -283,19 +285,23 @@ def main():
     else:
         ok("App 状态内核零 I/O / 无测试替身 / 无手写 COM（%d 个 .cs）" % len(app_files))
 
-    # 9. 产品程序集 verb 查询 0 次 / 零手写 COM
+    # 9. 产品程序集 verb 查询 0 次 / 分层 COM 口径（R2 起白名单唯一）
     product = sorted(p for p in (root / "src").rglob("*.cs") if p.is_file())
     product_bad = []
     for p in product:
+        rel = p.relative_to(root).as_posix()
         text = read(p)
         if "GetCommandString" in text:
-            product_bad.append("%s: verb scan" % p.relative_to(root).as_posix())
-        if re.search(r"\bComImport\b|\bInterfaceType\b", text):
-            product_bad.append("%s: hand-written COM" % p.relative_to(root).as_posix())
+            product_bad.append("%s: verb scan" % rel)
+        hit = com_policy.declaration_hit(rel, text)
+        if hit:
+            product_bad.append("%s: hand-written COM (`%s`)" % (rel, hit))
+        if com_policy.RAW_VTABLE.search(text):
+            product_bad.append("%s: raw vtable" % rel)
     if product_bad:
         bad("产品程序集触犯 B7 分层纪律：%s" % "; ".join(product_bad[:5]))
     else:
-        ok("产品程序集 verb 查询 0 次 / 零手写 COM（%d 个 .cs）" % len(product))
+        ok("产品程序集 verb 查询 0 次 / 分层 COM 口径（%d 个 .cs）" % len(product))
 
     # 10. 规格与实现一致 + C# 5 语法子集
     design = read(root / "design-v2.md")

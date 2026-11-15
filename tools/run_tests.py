@@ -13,7 +13,8 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 七类图标缩略图静态契约负向对照；B7 起增加 check-selftest-specs 正向 +
 八类自测 / 出包静态契约负向对照；B8 起增加 check-release-specs 正向 +
 十类发布线静态契约负向对照；R1 起增加 check-realization-specs 正向 +
-十类真实宿主静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+十类真实宿主静态契约负向对照；R2 起增加 check-transport-specs 正向 +
+十二类托管 COM 绑定静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 由 CI 的
 real-exe-build / real-exe-selftest 两步编译并实跑 --selftest。
 """
@@ -639,6 +640,107 @@ def mutate_host_satellite_reference(dst):
     p.write_text(broken, encoding="utf-8")
 
 
+def negative_transport_specs(label, mutate):
+    """临时副本里破坏一条 R2 托管 COM 契约，check-transport-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe", "dist"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_transport_specs.py"),
+                       "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-transport-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_drop_com_declaration(dst):
+    (dst / "src" / "QuadLite.Fs" / "ShellComInterop.cs").unlink()
+
+
+def mutate_drift_com_guid(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellComInterop.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("947aab5f-0a5c-4c13-b4d6-4bf7836fc9f8",
+                          "947aab5f-0a5c-4c13-b4d6-4bf7836fc9f9")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_drift_vtable_order(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellComInterop.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("int Advise(IFileOperationProgressSink",
+                          "int AdviseRenamed(IFileOperationProgressSink")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_inject_com_outside_whitelist(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellTransport.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: [ComImport] interface IRaw {}\n",
+                 encoding="utf-8")
+
+
+def mutate_inject_com_into_core(dst):
+    p = dst / "src" / "QuadLite.Core" / "Ports.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: [ComImport] interface ICoreRaw {}\n",
+                 encoding="utf-8")
+
+
+def mutate_inject_raw_vtable(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellComInterop.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: Marshal.ReadIntPtr(IntPtr.Zero, 0);\n",
+                 encoding="utf-8")
+
+
+def mutate_drop_sta(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellTransport.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("worker.SetApartmentState(ApartmentState.STA);",
+                          "worker.IsBackground = true;")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_drop_release(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellTransport.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("Marshal.ReleaseComObject(", "Marshal.FinalReleaseComObject(")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_enable_by_default(dst):
+    p = dst / "src" / "QuadLite.Fs" / "ShellTransport.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("if (!enabled)", "if (false)")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_drop_r2_adr(dst):
+    (dst / "docs" / "adr" / "ADR-v2-012.md").unlink()
+
+
+def mutate_spec_r2_drift(dst):
+    p = dst / "design-v2.md"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n| R2 | 真实 COM 绑定（擅自写进规格） | transport-* |\n", encoding="utf-8")
+
+
+def mutate_drop_ci_transport(dst):
+    p = dst / ".github" / "workflows" / "ci.yml"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("check-transport-specs", "transport-disabled")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -657,7 +759,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + ... + B8 + R1 real host)")
+    print("runner: zero-dependency gate self-test (B0 + ... + B8 + R1 real host + R2 COM transport)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -670,6 +772,7 @@ def main():
     expect_green("check-selftest-specs", script("check_selftest_specs.py"))
     expect_green("check-release-specs", script("check_release_specs.py"))
     expect_green("check-realization-specs", script("check_realization_specs.py"))
+    expect_green("check-transport-specs", script("check_transport_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -755,6 +858,18 @@ def main():
     negative_realization_specs("spec-batch-drift", mutate_spec_r1_drift)
     negative_realization_specs("missing-adr", mutate_drop_r1_adr)
     negative_realization_specs("satellite-project-reference", mutate_host_satellite_reference)
+    negative_transport_specs("missing-com-declaration", mutate_drop_com_declaration)
+    negative_transport_specs("guid-drift", mutate_drift_com_guid)
+    negative_transport_specs("vtable-order-drift", mutate_drift_vtable_order)
+    negative_transport_specs("com-outside-whitelist", mutate_inject_com_outside_whitelist)
+    negative_transport_specs("com-into-core", mutate_inject_com_into_core)
+    negative_transport_specs("raw-vtable", mutate_inject_raw_vtable)
+    negative_transport_specs("no-sta-thread", mutate_drop_sta)
+    negative_transport_specs("no-release", mutate_drop_release)
+    negative_transport_specs("enabled-by-default", mutate_enable_by_default)
+    negative_transport_specs("missing-adr", mutate_drop_r2_adr)
+    negative_transport_specs("spec-batch-drift", mutate_spec_r2_drift)
+    negative_transport_specs("ci-transport-removed", mutate_drop_ci_transport)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

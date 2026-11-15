@@ -9,10 +9,13 @@ name: gates
 # R1 起新增 real-exe-build / real-exe-selftest 两步：build.ps1 把四层源码用
 # 系统 C# 编译器一次编成单个 QuadLite.exe（WPF 消息循环、PerMonitorV2 manifest），
 # 并在无交互桌面上实跑产品 exe 的 --selftest（≥100 行 / verdict GREEN / 退出码 0）。
-# 列表控件 / 拖放 / 系统原生菜单 COM 宿主 / IFileOperation 真实绑定 / 图标缩略图渲染
-# 仍未接入；MSBuild 出包路径与 H1–H6 真实取证、C4 带杀软 VM 均不在 CI 内，M1 / M3 仍不成立。
+# R2 起 Fs 层含 IFileOperation 托管 COM 声明与 transport（Windows SDK 逐字对应），
+# CI 只编译、不实例化 COM、不调用 PerformOperations，运行期一律标「未验证」。
+# 列表控件 / 拖放 / 系统原生菜单 COM 宿主 / 图标缩略图渲染仍未接入；
+# MSBuild 出包路径与 H1–H6 真实取证、C4 带杀软 VM 均不在 CI 内，M1 / M3 仍不成立。
 # 详见 docs/adr/ADR-v2-001.md、ADR-v2-002.md、ADR-v2-004.md、ADR-v2-005.md、
-# ADR-v2-006.md、ADR-v2-007.md、ADR-v2-008.md、ADR-v2-009.md、ADR-v2-010.md。
+# ADR-v2-006.md、ADR-v2-007.md、ADR-v2-008.md、ADR-v2-009.md、ADR-v2-010.md、
+# ADR-v2-011.md、ADR-v2-012.md。
 on:
   push:
     branches: [main]
@@ -49,6 +52,8 @@ jobs:
         run: python tools/check_release_specs.py
       - name: check-realization-specs
         run: python tools/check_realization_specs.py
+      - name: check-transport-specs
+        run: python tools/check_transport_specs.py
       - name: run-tests (includes negative controls)
         run: python tools/run_tests.py
       - name: open-source compliance

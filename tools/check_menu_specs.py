@@ -20,6 +20,8 @@ import re
 import sys
 from pathlib import Path
 
+import com_policy
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -191,20 +193,25 @@ def main():
         total = sum(len(v) for v in CORE_INVARIANTS.values())
         ok("B5 规格常量 / 不变量齐备（%d 项）" % total)
 
-    # 5. 菜单专项合规：产品程序集不读 verb、不删项、不手写 COM、不引用替身
+    # 5. 菜单专项合规：产品程序集不读 verb、不删项、不引用替身；
+    #    R2 起 COM 声明按分层口径只允许在唯一白名单文件
     #    分层边界中的 System.IO 由 check-boundaries（B-01 / B-02）单独判定，
     #    Fs 适配器按设计允许 System.IO，不在此门卡重复拦截。
     product = sorted(p for p in (root / "src").rglob("*.cs") if p.is_file())
     violations = []
     for p in product:
+        rel = p.relative_to(root).as_posix()
         text = read(p)
         for label, rx in PRODUCT_FORBIDDEN:
+            # R2 分层口径：唯一白名单文件允许托管 COM 声明，其余禁令照旧
+            if label == "hand-written COM" and com_policy.is_declaration(rel):
+                continue
             if rx.search(text):
-                violations.append("%s: %s" % (p.relative_to(root).as_posix(), label))
+                violations.append("%s: %s" % (rel, label))
     if violations:
         bad("产品程序集触犯菜单专项纪律：%s" % "; ".join(violations))
     else:
-        ok("产品程序集 verb 查询 0 次 / 零删项 / 零手写 COM（%d 个 .cs 实测）" % len(product))
+        ok("产品程序集 verb 查询 0 次 / 零删项 / 分层 COM 口径（%d 个 .cs 实测）" % len(product))
 
     # 6. App 菜单状态内核零 I/O / 无测试替身 / 无手写 COM / 无 verb 查询
     app_files = sorted(p for p in app.glob("*.cs") if p.is_file()) if app.exists() else []

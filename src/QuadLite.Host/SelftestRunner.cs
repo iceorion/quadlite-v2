@@ -151,6 +151,27 @@ namespace QuadLite.Host
             probe.Add("host-release-evidence",
                       !release.IsPublishable() &&
                       release.CurrentM3Verdict() == ReleaseVerdict.EvidenceMissing);
+
+            // R2：托管 COM 绑定只做可判定的静态契约断言，绝不实例化 shell 对象。
+            probe.Add("r2-com-id-contract",
+                      QuadLite.Fs.ShellContractRules.DeclaredFileOperationMethods() == 21 &&
+                      QuadLite.Fs.ShellContractRules.DeclaredProgressSinkMethods() == 16 &&
+                      QuadLite.Fs.ShellContractRules.DeclaredShellItemMethods() == 5 &&
+                      !QuadLite.Fs.ShellContractRules.IsRuntimeVerified());
+
+            probe.Add("r2-sta-contract",
+                      QuadLite.Fs.ShellContractRules.RequiresStaThread() &&
+                      QuadLite.Fs.ShellContractRules.NewInstancePerOperation() &&
+                      QuadLite.Fs.ShellContractRules.UndoRecordAsymmetric(true) &&
+                      !QuadLite.Fs.ShellContractRules.UndoRecordAsymmetric(false));
+
+            probe.Add("r2-flags-contract",
+                      (QuadLite.Fs.ShellContractRules.FlagsFor(OpKind.Delete, false) & 0x0040u) != 0 &&
+                      (QuadLite.Fs.ShellContractRules.FlagsFor(OpKind.PermanentDelete, false) & 0x4000u) != 0 &&
+                      (QuadLite.Fs.ShellContractRules.FlagsFor(OpKind.Copy, false) & 0x20000000u) == 0);
+
+            probe.Add("r2-transport-closed-by-default",
+                      !new QuadLite.Fs.ShellTransport().Enabled);
         }
     }
 }

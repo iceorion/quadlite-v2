@@ -172,6 +172,51 @@ namespace QuadLite.Host
 
             probe.Add("r2-transport-closed-by-default",
                       !new QuadLite.Fs.ShellTransport().Enabled);
+
+            // R3：浏览 / 搬运 UI 的可判定契约。全部纯内存：不创建窗口、不枚举目录、
+            // 不实例化 COM、不调用 PerformOperations。
+            probe.Add("r3-slots-complete",
+                      UiContractRules.SlotsComplete() && UiContractRules.PaneObjectsPersist());
+
+            probe.Add("r3-late-batch-discarded",
+                      UiContractRules.LateBatchDiscarded(7, 6) &&
+                      !UiContractRules.LateBatchDiscarded(7, 7));
+
+            probe.Add("r3-transport-honest",
+                      UiContractRules.TransportHonest(false,
+                          "搬运未执行：transport 默认关闭（未验证）") &&
+                      !UiContractRules.TransportHonest(true, "搬运完成"));
+
+            probe.Add("r3-no-inferred-success",
+                      UiContractRules.NoInferredSuccess() &&
+                      UiContractRules.StatusFieldCount() == 3);
+
+            PathKey dir;
+            PathKey file;
+            PathKey dest;
+            bool parsed = PathKey.TryNormalize("C:\\src", out dir) &&
+                          PathKey.TryNormalize("C:\\src\\a.txt", out file) &&
+                          PathKey.TryNormalize("C:\\dst", out dest);
+            List<PathKey> selection = new List<PathKey>();
+            selection.Add(file);
+            OpRequest copyRequest = null;
+            OpRequest badRequest = null;
+            bool copyOk = false;
+            bool badOk = false;
+            if (parsed)
+            {
+                copyOk = BrowseCommands.TryBuildRequest(OpKind.Copy, selection, dir, dest, 0,
+                                                        out copyRequest);
+                badOk = BrowseCommands.TryBuildRequest(OpKind.Copy, selection, dir, null, 0,
+                                                      out badRequest);
+            }
+            probe.Add("r3-request-hard-validation",
+                      parsed && copyOk && !badOk && copyRequest != null && badRequest != null);
+
+            probe.Add("r3-runtime-unverified",
+                      !UiContractRules.IsRuntimeVerified() &&
+                      !new BrowseCommands().TransportEnabled &&
+                      UiContractRules.BoundaryText() == "未实现 / 未验证");
         }
     }
 }

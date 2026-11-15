@@ -260,7 +260,8 @@ def main():
     na("真实 IFileOperation 搬运 / ProgressSink 回调 / 回收站真实路径 / 独立 STA 运行期 / "
        "崩溃哨兵 / Join 超时：未验证，需 H1–H6 真机取证")
     na("§5.2「成熟绑定」偏差：零 NuGet + net48 下改用 SDK 逐字对应的托管声明，见 ADR-012")
-    na("M1 / M2 / M3 仍不成立：窗口仍无浏览 / 搬运 UI，ReleaseState.IsPublishable() == false")
+    na("M1 / M2 / M3 仍不成立：R3 起窗口已有浏览 / 搬运 UI 接线，但 transport 默认关闭、"
+       "CI 不实例化 COM，真实交互与 shell 运行期未验证；ReleaseState.IsPublishable() == false")
 
     if errors:
         print("verdict: RED (%d)" % len(errors))

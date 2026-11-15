@@ -12,9 +12,11 @@ CI 真跑 / 单程序集一致性 / 分层纪律 / C# 5 / 规格未改 / 证据�
 
 真实 exe 的编译与 --selftest 运行由 CI 的 real-exe-build / real-exe-selftest
 两步实测；本机不执行 C# 编译器，一律标「未验证」。
-R2 起 Fs 层已接入 IFileOperation 托管 COM 声明与 transport，但运行期完全未验证；
-NativeMenuHost、图标缩略图渲染、H1–H6 取证与 C4 带杀软 VM 仍未实现 / 未验证，
-M1 与 M3 均不成立（见 docs/adr/ADR-v2-011.md 与 ADR-v2-012.md）。
+R2 起 Fs 层已接入 IFileOperation 托管 COM 声明与 transport；R3 起 Host 窗口按
+LayoutMath.Slots 四档落位、用 IDirSource 枚举目录、ListBox 呈现条目，并把搬运命令
+经 OperationCoordinator 接到 R2 transport（默认关闭）。这些运行期行为全未验证；
+NativeMenuHost、图标缩略图渲染、拖放、H1–H6 取证与 C4 带杀软 VM 仍未实现 / 未验证，
+M1 与 M3 均不成立（见 ADR-v2-011 / ADR-v2-012 / ADR-v2-013）。
 """
 import argparse
 import re
@@ -267,7 +269,8 @@ def main():
         ok("证据文档齐备（ADR-011 沿用/修订/作废 + 账本 R1 + 负向对照 R1 + README）")
 
     na("本机不执行 C# 编译器：真实 exe 编译与 --selftest 退出码以 CI 远端实测为准")
-    na("R2 起托管 COM 声明与 transport 已编入 Fs 层，运行期完全未验证；"
+    na("R3 起浏览 / 搬运 UI 已接线并编进单 exe，但 CI 不开窗口、不枚举目录；"
+       "transport 默认关闭、真实交互与 shell 运行期未验证；"
        "NativeMenuHost / 图标缩略图渲染 / 拖放 / H1–H6 取证 / C4 带杀软 VM："
        "未实现或未验证；M1 与 M3 均不成立")
 

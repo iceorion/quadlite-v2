@@ -14,7 +14,8 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 八类自测 / 出包静态契约负向对照；B8 起增加 check-release-specs 正向 +
 十类发布线静态契约负向对照；R1 起增加 check-realization-specs 正向 +
 十类真实宿主静态契约负向对照；R2 起增加 check-transport-specs 正向 +
-十二类托管 COM 绑定静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+十二类托管 COM 绑定静态契约负向对照；R3 起增加 check-ui-specs 正向 +
+十五类浏览 / 搬运 UI 静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 由 CI 的
 real-exe-build / real-exe-selftest 两步编译并实跑 --selftest。
 """
@@ -741,6 +742,121 @@ def mutate_drop_ci_transport(dst):
     p.write_text(broken, encoding="utf-8")
 
 
+def negative_ui_specs(label, mutate):
+    """临时副本里破坏一条 R3 浏览 / 搬运 UI 契约，check-ui-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe", "dist"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_ui_specs.py"),
+                       "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-ui-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def mutate_delete_r3_policies(dst):
+    (dst / "src" / "QuadLite.Host" / "HostPolicies.cs").unlink()
+
+
+def mutate_delete_r3_pane_view(dst):
+    (dst / "src" / "QuadLite.Host" / "PaneView.cs").unlink()
+
+
+def mutate_delete_r3_commands(dst):
+    (dst / "src" / "QuadLite.Host" / "BrowseCommands.cs").unlink()
+
+
+def mutate_drop_r3_adr(dst):
+    (dst / "docs" / "adr" / "ADR-v2-013.md").unlink()
+
+
+def mutate_no_list_control(dst):
+    p = dst / "src" / "QuadLite.Host" / "PaneView.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("new ListBox()", "new TextBox()")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_no_late_batch(dst):
+    p = dst / "src" / "QuadLite.Host" / "PaneView.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("EnumBatchRules.IsLateBatch(", "LateBatchIgnored(")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_no_slot_placement(dst):
+    p = dst / "src" / "QuadLite.Host" / "MainWindow.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("LayoutMath.Slots(", "LayoutMath.PaneCount(")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_no_coordinator(dst):
+    p = dst / "src" / "QuadLite.Host" / "BrowseCommands.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("new OperationCoordinator(", "new object(")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_transport_enabled_in_ui(dst):
+    p = dst / "src" / "QuadLite.Host" / "BrowseCommands.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("transport = new ShellTransport();",
+                          "transport = new ShellTransport(); transport.Enable();")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_no_honest_refusal(dst):
+    p = dst / "src" / "QuadLite.Host" / "BrowseCommands.cs"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("搬运未执行", "搬运已成功")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_r3_host_io(dst):
+    p = dst / "src" / "QuadLite.Host" / "PaneView.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\nusing System.IO;  // negative control\n", encoding="utf-8")
+
+
+def mutate_cs6_ui(dst):
+    p = dst / "src" / "QuadLite.Host" / "HostPolicies.cs"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 '\n// negative control\npublic static class BadUi { public string S() { return $"x"; } }\n',
+                 encoding="utf-8")
+
+
+def mutate_spec_r3_drift(dst):
+    p = dst / "design-v2.md"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n| R3 | 浏览 UI（擅自写进规格） | ui-* |\n", encoding="utf-8")
+
+
+def mutate_drop_ci_ui(dst):
+    p = dst / ".github" / "workflows" / "ci.yml"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("check-ui-specs", "ui-disabled")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_drop_csproj_ui_entry(dst):
+    p = dst / "src" / "QuadLite.Host" / "QuadLite.Host.csproj"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('    <Compile Include="PaneView.cs" />\n', "")
+    assert broken != text, "negative control did not apply"
+    p.write_text(broken, encoding="utf-8")
+
+
 def negative_open_source():
     """临时副本里塞一条正面旧口号，§10 扫描必须打回。"""
     with tempfile.TemporaryDirectory() as td:
@@ -759,7 +875,7 @@ def negative_open_source():
 
 
 def main():
-    print("runner: zero-dependency gate self-test (B0 + ... + B8 + R1 real host + R2 COM transport)")
+    print("runner: zero-dependency gate self-test (B0 + ... + B8 + R1 real host + R2 COM transport + R3 browse UI)")
 
     expect_green("check-trace-green", script("check_trace.py"))
     expect_green("check-boundaries-src", script("check_boundaries.py"))
@@ -773,6 +889,7 @@ def main():
     expect_green("check-release-specs", script("check_release_specs.py"))
     expect_green("check-realization-specs", script("check_realization_specs.py"))
     expect_green("check-transport-specs", script("check_transport_specs.py"))
+    expect_green("check-ui-specs", script("check_ui_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -870,6 +987,21 @@ def main():
     negative_transport_specs("missing-adr", mutate_drop_r2_adr)
     negative_transport_specs("spec-batch-drift", mutate_spec_r2_drift)
     negative_transport_specs("ci-transport-removed", mutate_drop_ci_transport)
+    negative_ui_specs("missing-policies", mutate_delete_r3_policies)
+    negative_ui_specs("missing-pane-view", mutate_delete_r3_pane_view)
+    negative_ui_specs("missing-commands", mutate_delete_r3_commands)
+    negative_ui_specs("missing-adr", mutate_drop_r3_adr)
+    negative_ui_specs("no-list-control", mutate_no_list_control)
+    negative_ui_specs("no-late-batch", mutate_no_late_batch)
+    negative_ui_specs("no-slot-placement", mutate_no_slot_placement)
+    negative_ui_specs("no-coordinator", mutate_no_coordinator)
+    negative_ui_specs("transport-enabled-in-ui", mutate_transport_enabled_in_ui)
+    negative_ui_specs("no-honest-refusal", mutate_no_honest_refusal)
+    negative_ui_specs("host-io", mutate_r3_host_io)
+    negative_ui_specs("cs6-syntax", mutate_cs6_ui)
+    negative_ui_specs("spec-batch-drift", mutate_spec_r3_drift)
+    negative_ui_specs("ci-ui-removed", mutate_drop_ci_ui)
+    negative_ui_specs("missing-csproj-entry", mutate_drop_csproj_ui_entry)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

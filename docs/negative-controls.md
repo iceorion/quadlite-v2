@@ -214,7 +214,7 @@ R2 只把「可编译、可静态判定的真实调用链」接入证据闭环�
 
 R3 的 15 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；
 真实键鼠交互、异步枚举时序、四档实际渲染与真实 shell 搬运由 H1–H6 真机取证，本机与 CI 均不打开窗口、不实例化 COM。
-R3 只把「可编译、可静态判定的浏览与搬运链路」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-013.md` 偏差登记）。CI run 号与步骤结论在 push 后回填到 `docs/run-ledger.md` R3 行与 `ADR-v2-013.md`。
+R3 只把「可编译、可静态判定的浏览与搬运链路」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-013.md` 偏差登记）。CI 结论已回填到 `docs/run-ledger.md` R3 行与 `ADR-v2-013.md`：首次功能提交 `d8ba545` 的 run `43716871530` 在 `real-exe-build` 判红（C# 5 CS0165），修复提交 `0836109` 复跑 run `43717485240` 结论 `success`，二十个门卡 / 编译步骤逐项 `success`（`check-ui-specs` / `real-exe-build` / `real-exe-selftest` 全绿）；首次判红不作为通过证据。
 
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 

@@ -29,7 +29,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
 | `build.ps1` | 构建与出包入口（B0 为骨架；R1 起改为真实单文件编译链，由 CI `real-exe-build` 实跑产出 `QuadLite.exe` + `BUILD.txt`，`real-exe-selftest` 实跑产品 `--selftest`；MSBuild 出包路径仍标「未验证」） |
 | `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs` + B5 `check-menu-specs` + B6 `check-icon-specs` + B7 `check-selftest-specs` + B8 `check-release-specs` + R1 `check-realization-specs` + R2 `check-transport-specs` + R3 `check-ui-specs`，共十五个）+ 正 / 负样本夹具 |
-| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success`；R1 起再加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步，R2 起再加 `check-transport-specs`，R3 起再加 `check-ui-specs`（run 号待回填）；**首次实跑已通过**：run `42376298215`（push head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，含真实单 exe 编译与产品 `--selftest`（≥100 行 / `verdict: GREEN` / 退出码 0 / `BUILD.txt` 七字段） |
+| `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success`；R1 起再加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步，R2 起再加 `check-transport-specs`，R3 起再加 `check-ui-specs`（run `43717485240` / head `0836109`，二十个门卡 / 编译步骤全 `success`）；**首次实跑已通过**：run `42376298215`（push head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，含真实单 exe 编译与产品 `--selftest`（≥100 行 / `verdict: GREEN` / 退出码 0 / `BUILD.txt` 七字段） |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |
 
 本地复核（无需安装任何依赖）：
@@ -212,7 +212,7 @@ R3 把 R2 的 transport 第一次挂到用户可触发的操作上，范围按 `
 
 **偏差照实登记**：transport 仍默认 `Enabled = false`，R3 **不提供 UI 启用入口**；关闭时命令明确返回「搬运未执行 / 未验证」，绝不把「没有异常」写成成功。CI 与本机都不打开窗口、不枚举目录、不实例化 COM，真实键鼠交互、异步枚举时序、四档实际渲染、真实 `IFileOperation` 行为全部「未验证」。拖放、系统原生菜单 COM 宿主、图标与缩略图渲染、七档视图与筛选、会话与书签、单实例后两段、崩溃哨兵、MSBuild 出包路径与 H1–H6 / C4 取证仍未实现或未验证。`ReleaseState.IsPublishable() == false`，**M1 / M2 / M3 均不成立**，完整偏差见 `docs/adr/ADR-v2-013.md`。
 
-**CI 首次实跑**：run 号与步骤结论在 push 后回填。本机不执行 C# 编译器，真实编译与 `--selftest` 结论只记 CI 远端实测。
+**CI 首次实跑判红并已修复**：功能提交 `d8ba545` 的 run `43716871530` 在 `real-exe-build` 判红（`real-exe-selftest` 跳过），根因是产品 `--selftest` 里三个 `out` 变量放在 `&&` 短路链后直接使用，触发 C# 5 的 CS0165；Python 门卡与 Fs / App 库编译均 `success`，因为都不编 Host 层。修复提交 `0836109` 显式初始化变量，并让 CI 编译步骤把 `error CS` 行以 annotation 暴露，复跑 run `43717485240`（head `0836109`）结论 `success`，二十个门卡 / 编译步骤逐项 `success`，其中 `check-ui-specs` / `real-exe-build` / `real-exe-selftest` 全绿 ⇒ 四层 103 个 .cs 一次编成单 exe、`BUILD.txt` 七字段齐、产品 `--selftest` 报告 ≥100 行且 `verdict: GREEN`、退出码 0（含 6 组 R3 契约断言）。首次判红不作为通过证据。本机不执行 C# 编译器，真实编译与 `--selftest` 结论只记 CI 远端实测；CI 不开窗口、不枚举目录、不实例化 COM。
 
 后续顺序（拆分理由见 ADR-013 D1）：**R4** 系统原生菜单 COM 宿主（§5.2 标准四步 + `IContextMenu2/3` 消息转发），**R5** 图标与缩略图渲染。顺序较 ADR-011 D2 的口头提议进一步细分，先做载体、再做两套彼此正交的 COM 绑定。
 

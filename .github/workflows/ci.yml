@@ -103,8 +103,13 @@ jobs:
         shell: pwsh
         run: |
           $dist = Join-Path $env:RUNNER_TEMP 'quadlite-dist'
-          & ./build.ps1 -Configuration Release -OutDir $dist
-          if ($LASTEXITCODE -ne 0) { Write-Host "real exe build failed ($LASTEXITCODE)"; exit $LASTEXITCODE }
+          $buildOutput = & ./build.ps1 -Configuration Release -OutDir $dist 2>&1
+          $buildCode = $LASTEXITCODE
+          $buildOutput | ForEach-Object { Write-Host $_ }
+          if ($buildCode -ne 0) {
+            $buildOutput | Where-Object { $_ -match 'error CS|BUILD:' } | ForEach-Object { Write-Host "::error::$_" }
+            Write-Host "real exe build failed ($buildCode)"; exit $buildCode
+          }
           $exe = Join-Path $dist 'QuadLite.exe'
           $manifest = Join-Path $dist 'BUILD.txt'
           if (-not (Test-Path -LiteralPath $exe)) { Write-Host 'QuadLite.exe missing'; exit 1 }

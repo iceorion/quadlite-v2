@@ -131,7 +131,7 @@ namespace QuadLite.Host
 
         public bool GoUp()
         {
-            PathKey parent;
+            PathKey parent = null;
             if (state.Path == null || !state.Path.TryGetParent(out parent)) return false;
             Navigate(parent);
             return true;

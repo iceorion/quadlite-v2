@@ -191,14 +191,14 @@ namespace QuadLite.Host
                       UiContractRules.NoInferredSuccess() &&
                       UiContractRules.StatusFieldCount() == 3);
 
-            PathKey dir;
-            PathKey file;
-            PathKey dest;
+            PathKey dir = null;
+            PathKey file = null;
+            PathKey dest = null;
             bool parsed = PathKey.TryNormalize("C:\\src", out dir) &&
                           PathKey.TryNormalize("C:\\src\\a.txt", out file) &&
                           PathKey.TryNormalize("C:\\dst", out dest);
             List<PathKey> selection = new List<PathKey>();
-            selection.Add(file);
+            if (parsed && file != null) selection.Add(file);
             OpRequest copyRequest = null;
             OpRequest badRequest = null;
             bool copyOk = false;

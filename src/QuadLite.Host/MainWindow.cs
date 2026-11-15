@@ -195,8 +195,8 @@ namespace QuadLite.Host
 
         private void GoToAddress()
         {
-            PathKey key;
-            AddressReject reject;
+            PathKey key = null;
+            AddressReject reject = default(AddressReject);
             if (!AddressRules.TryParse(address.Text, out key, out reject) ||
                 !AddressRules.ShouldNavigate(reject))
             {

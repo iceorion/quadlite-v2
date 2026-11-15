@@ -27,7 +27,7 @@ B0 只交付骨架与可机器验证的闸门，不含产品功能代码：
 | 路径 | 内容 |
 |---|---|
 | `Directory.Build.props` / `src/*.csproj` | net48 + WPF + C# 5 语法子集，SDK 风格工程文件，`FrameworkPathOverride` 参数化 |
-| `build.ps1` | 构建与出包入口（B0 未实跑，标「未验证」） |
+| `build.ps1` | 构建与出包入口（B0 为骨架；R1 起改为真实单文件编译链，由 CI `real-exe-build` 实跑产出 `QuadLite.exe` + `BUILD.txt`，`real-exe-selftest` 实跑产品 `--selftest`；MSBuild 出包路径仍标「未验证」） |
 | `tools/` | 零第三方依赖的 Python 3 检查脚本（B0 四个 + B1 `check-core-specs` + B2 `check-fs-specs` + B3 `check-shell-specs` + B4 `check-list-specs` + B5 `check-menu-specs` + B6 `check-icon-specs` + B7 `check-selftest-specs` + B8 `check-release-specs` + R1 `check-realization-specs`，共十三个）+ 正 / 负样本夹具 |
 | `.github/workflows/ci.yml` | 需求追踪 / 静态边界 / 静态契约（Core、Fs、外壳、列表、菜单、图标缩略图、自测出包、发布线）/ 检查链自测 / 开源合规 / C# runner（B7 起同时编译 App 状态内核）/ Fs 与 App 库编译；B0–B6 首次实跑均已通过（B6 为 run `42343839222` / head `c0529da`，十三步全 `success`）；B7（run `42357787519` / head `266ca65`，十四步全 `success`）首次实跑亦已通过；B8（run `42361122709` / head `97fd31d`，十五步全 `success`）首次实跑亦已通过，`check-release-specs`、71 组 runner 与 12 文件 App 库编译均 `success`；R1 起再加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步；**首次实跑已通过**：run `42376298215`（push head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，含真实单 exe 编译与产品 `--selftest`（≥100 行 / `verdict: GREEN` / 退出码 0 / `BUILD.txt` 七字段） |
 | `docs/adr/` `docs/negative-controls.md` `docs/run-ledger.md` | 设计决策记录、负向对照登记、运行账本 |

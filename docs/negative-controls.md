@@ -193,7 +193,7 @@ R1 只把「可运行的载体」接入证据闭环，**M1 / M2 / M3 仍不成�
 
 R2 的 12 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；
 真实 shell 搬运的运行期行为由 H1–H6 真机取证，本机与 CI 均不实例化 COM。
-R2 只把「可编译、可静态判定的真实调用链」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-012.md` 偏差登记）。
+R2 只把「可编译、可静态判定的真实调用链」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-012.md` 偏差登记）。**CI 首次实跑已通过**：run `43713387488`（head `bbbe0e5`），十九个门卡 / 编译步骤逐项 `success`，其中 `check-transport-specs` / `csharp-fs-compile` / `real-exe-build` / `real-exe-selftest` 全绿；CI 只编译，不实例化 COM、不调用 `PerformOperations`。
 
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 

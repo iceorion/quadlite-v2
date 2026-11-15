@@ -194,6 +194,8 @@ R2 只解决「真实搬运的代码路径」：`src/QuadLite.Fs/ShellComInterop
 
 **偏差照实登记**：§5.2 要求「COM 声明使用成熟绑定，不手写 vtable」，零 NuGet + net48 下 .NET Framework 没有公开托管的 `IFileOperation` 绑定，本批改用 SDK 逐字对应的托管声明，这是明确偏差，规格一字未改。CI 只编译、不实例化 COM、不调用 `PerformOperations`；真实 shell 行为、回收站真实路径、STA 线程 Join 超时与崩溃哨兵全部「未验证」。窗口仍无浏览 / 搬运 UI，transport 默认关闭，**M1 / M2 / M3 均不成立**，完整偏差见 `docs/adr/ADR-v2-012.md`。
 
+**CI 首次实跑已通过**：run `43713387488`（push head `bbbe0e5`），十九个门卡 / 编译步骤逐项 `success`，其中 `check-transport-specs`、`csharp-fs-compile`、`real-exe-build`、`real-exe-selftest` 全绿 ⇒ 托管 COM 声明编译通过、四层 100 个 .cs 一次编成单 exe、产品 `--selftest` 报告 ≥100 行且 `verdict: GREEN`、退出码 0。本机不执行 C# 编译器，该结论只记 CI 远端实测；CI 不实例化 COM、不调用 `PerformOperations`。
+
 后续顺序：**R3 起**接原生菜单宿主、图标渲染与浏览 / 搬运 UI（把 R2 的 transport 真正挂到用户可触发的操作上）。顺序较上一轮口头提议调整为先做载体，理由见 ADR-011 D2。
 
 ## 首版设计目标（摘要）

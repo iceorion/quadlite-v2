@@ -13,10 +13,11 @@ namespace QuadLite.Host
     /// 枚举真实目录，工具栏把复制 / 移动 / 删除接到 OperationCoordinator 与 R2 的
     /// ShellTransport（默认关闭，未启用时明确写「未执行 / 未验证」）。
     ///
-    /// 这里仍是「可编译、可静态判定的浏览与搬运骨架」，不是 MVP：
-    /// 拖放、系统原生右键菜单 COM 宿主、图标与缩略图渲染、七档视图与筛选、
-    /// 会话与书签持久化、run.lock 与 WM_COPYDATA 转发、--shot / --bench 诊断装置
-    /// 均未实现 / 未验证；真实键鼠交互与真实 shell 搬运运行期未取证。M1 MVP 不成立。
+    /// 这里仍是「可编译、可静态判定的浏览、搬运与菜单骨架」，不是 MVP：
+    /// R4 起右键把不可变快照交给 Fs 层的原生菜单宿主（默认关闭、运行期未验证），
+    /// 拖放、图标与缩略图渲染、七档视图与筛选、会话与书签持久化、run.lock 与
+    /// WM_COPYDATA 转发、--shot / --bench 诊断装置均未实现 / 未验证；
+    /// 真实键鼠交互与真实 shell 搬运运行期未取证。M1 MVP 不成立。
     /// </summary>
     public sealed class MainWindow : Window
     {
@@ -25,6 +26,7 @@ namespace QuadLite.Host
         private readonly TextBlock status;
         private readonly TextBox address;
         private readonly BrowseCommands commands;
+        private readonly MenuCommands menuCommands;
         private LayoutMode layout = LayoutMode.Four;
         private int activePaneId = 0;
 
@@ -38,6 +40,7 @@ namespace QuadLite.Host
             this.Background = Brushes.White;
 
             commands = new BrowseCommands(null);
+            menuCommands = new MenuCommands();
             IDirSource source = new DirSource();
             PaneState[] states = PaneSet.Create();
             panes = new PaneView[LayoutMath.MaxPanes];
@@ -46,6 +49,7 @@ namespace QuadLite.Host
                 panes[i] = new PaneView(i, states[i], source);
                 int id = i;
                 panes[i].SetStatusSink(delegate(string text) { OnPaneStatus(id, text); });
+                panes[i].SetMenuSink(OnContextMenu);
             }
 
             Grid root = new Grid();
@@ -234,6 +238,12 @@ namespace QuadLite.Host
             return null;
         }
 
+        /// <summary>R4：右键只把打开菜单那一刻的快照交给宿主，状态栏取结构化文案。</summary>
+        private void OnContextMenu(IList<PathKey> selection, PathKey directory, int paneId)
+        {
+            UpdateStatus(menuCommands.Show(selection, directory, paneId));
+        }
+
         private void OnPaneStatus(int paneId, string text)
         {
             if (paneId != activePaneId) return;
@@ -244,9 +254,12 @@ namespace QuadLite.Host
         {
             status.Text = text +
                 " | transport=" + (commands.TransportEnabled ? "enabled" : "disabled by default / 未验证") +
-                " | 未实现 / 未验证：拖放、系统原生菜单 COM 宿主、图标缩略图渲染、" +
+                " | native-menu=" + (menuCommands.Enabled ? "enabled" :
+                                    "wired but disabled by default / 未验证") +
+                " | 未实现 / 未验证：拖放、图标缩略图渲染、" +
                 "七档视图与筛选、会话与书签、run.lock 与 WM_COPYDATA 转发、" +
-                "--shot / --bench 诊断装置；真实交互与 shell 运行期未取证；" +
+                "--shot / --bench 诊断装置、菜单崩溃哨兵与自绘兜底；" +
+                "真实交互、原生菜单 COM 与 shell 运行期未取证；" +
                 "发布线 H1-H6 与 C4 未取证，M1 MVP 不成立";
         }
     }

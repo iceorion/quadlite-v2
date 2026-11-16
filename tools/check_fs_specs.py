@@ -103,7 +103,7 @@ def main():
         hit = com_policy.declaration_hit(rel, text)
         if hit:
             com_hits.append("%s: `%s`" % (fname, hit))
-        if com_policy.RAW_VTABLE.search(text) or com_policy.VERB_SCAN.search(text):
+        if com_policy.RAW_VTABLE.search(text) or com_policy.verb_hit(rel, text):
             raw_hits.append(fname)
     if com_hits or raw_hits:
         bad("分层 COM 口径被破坏：%s" % "; ".join(com_hits + raw_hits))

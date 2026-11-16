@@ -217,6 +217,48 @@ namespace QuadLite.Host
                       !UiContractRules.IsRuntimeVerified() &&
                       !new BrowseCommands().TransportEnabled &&
                       UiContractRules.BoundaryText() == "未实现 / 未验证");
+
+            // R4：原生菜单宿主的可判定契约。全部纯内存：不创建窗口、不枚举目录、
+            // 不实例化 COM、不调用 TrackPopupMenuEx / InvokeCommand。
+            probe.Add("r4-standard-four-steps",
+                      MenuCommands.ContractIsHonest() &&
+                      QuadLite.Fs.MenuHostContractRules.StandardSequenceDeclared() &&
+                      QuadLite.Fs.MenuHostContractRules.RequiresStaThread());
+
+            probe.Add("r4-sdk-vtable-sizes",
+                      QuadLite.Fs.MenuHostContractRules.DeclaredContextMenuMethods() == 3 &&
+                      QuadLite.Fs.MenuHostContractRules.DeclaredContextMenu2Methods() == 4 &&
+                      QuadLite.Fs.MenuHostContractRules.DeclaredContextMenu3Methods() == 5 &&
+                      QuadLite.Fs.MenuHostContractRules.DeclaredShellFolderMethods() == 10);
+
+            probe.Add("r4-no-verb-no-deletion",
+                      QuadLite.Fs.MenuHostContractRules.VerbsNeverQueried() &&
+                      MenuHostRules.VerbScanCount() == 0 &&
+                      MenuHostRules.MenuTreeRewriteCount() == 0);
+
+            probe.Add("r4-id-range-and-own-segment",
+                      MenuInvokeRules.InvokeIdInRange(1, 7) &&
+                      MenuInvokeRules.ShouldDrop(0x7FFF, 7) &&
+                      !MenuInvokeRules.ShouldDrop(0x8001, 7) &&
+                      QuadLite.Fs.MenuHostContractRules.OwnSegmentDisjoint());
+
+            probe.Add("r4-message-forwarding",
+                      QuadLite.Fs.MenuHostContractRules.ForwardsAllMessages() &&
+                      MenuMessageRules.ForwardsOnlyDuringTracking() &&
+                      MenuMessageRules.ForwardsToContextMenu2Or3());
+
+            probe.Add("r4-release-rules",
+                      QuadLite.Fs.MenuHostContractRules.ReleasesBothResources() &&
+                      MenuReleaseRules.ReleaseCallCount(2) == 4);
+
+            probe.Add("r4-target-snapshot",
+                      QuadLite.Fs.MenuHostContractRules.UsesImmutableSnapshot() &&
+                      MenuTargetSnapshotRules.SystemItemDispatchAlsoUsesSnapshot());
+
+            probe.Add("r4-runtime-unverified",
+                      !QuadLite.Fs.MenuHostContractRules.IsRuntimeVerified() &&
+                      !new QuadLite.Fs.NativeMenuHost().Enabled &&
+                      !new MenuCommands().Enabled);
         }
     }
 }

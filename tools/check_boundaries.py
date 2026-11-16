@@ -14,6 +14,8 @@ import re
 import sys
 from pathlib import Path
 
+import com_policy
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -99,6 +101,17 @@ def check_source(root):
                 continue
             if rule == "INV-05" and "safetyguard" in p.name.lower():
                 continue  # 判级只允许在 SafetyGuard 一处
+            if rule == "B-04":
+                # R4：verb 查询 0 次的判据统一走 com_policy 单点口径。
+                # 唯一 COM 白名单文件允许 SDK vtable 的方法名声明，不允许任何调用；
+                # 其余层出现方法名即判红（含夹具里的负样本）。
+                rel = p.relative_to(root).as_posix()
+                if not rel.startswith("src/"):
+                    rel = "src/" + rel
+                hit = com_policy.verb_hit(rel, text)
+                if hit:
+                    hits[rule].append("%s: `%s`" % (p.relative_to(root).as_posix(), hit))
+                continue
             m = rx.search(text)
             if m:
                 hits[rule].append("%s: `%s`" % (p.relative_to(root).as_posix(), m.group(0)))

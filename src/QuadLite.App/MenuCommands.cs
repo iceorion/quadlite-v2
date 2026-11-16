@@ -8,7 +8,7 @@ namespace QuadLite.App
 
     /// <summary>
     /// B5 菜单命令内核（L4，零 I/O）：把选中 ID / 关闭事件 / 哨兵动作解析成结构化结果。
-    /// 不调用 shell、不弹菜单、不写 data 目录；真实 NativeMenuHost 未接入。
+    /// 不调用 shell、不弹菜单、不写 data 目录；R4 起真实菜单宿主在 Fs 层（默认关闭、运行期未验证），本层仍只做解析。
     /// </summary>
     public static class MenuCommands
     {

@@ -14,9 +14,10 @@ CI 真跑 / 单程序集一致性 / 分层纪律 / C# 5 / 规格未改 / 证据�
 两步实测；本机不执行 C# 编译器，一律标「未验证」。
 R2 起 Fs 层已接入 IFileOperation 托管 COM 声明与 transport；R3 起 Host 窗口按
 LayoutMath.Slots 四档落位、用 IDirSource 枚举目录、ListBox 呈现条目，并把搬运命令
-经 OperationCoordinator 接到 R2 transport（默认关闭）。这些运行期行为全未验证；
-NativeMenuHost、图标缩略图渲染、拖放、H1–H6 取证与 C4 带杀软 VM 仍未实现 / 未验证，
-M1 与 M3 均不成立（见 ADR-v2-011 / ADR-v2-012 / ADR-v2-013）。
+经 OperationCoordinator 接到 R2 transport（默认关闭）。R4 起 Fs 层 NativeMenuHost 已按
+§5.2 标准四步接线、Host 右键接入 MenuTarget 快照，但宿主默认关闭。这些运行期行为全未验证；
+图标缩略图渲染、拖放、崩溃哨兵、自绘兜底、H1–H6 取证与 C4 带杀软 VM 仍未实现 / 未验证，
+M1 / M2 / M3 均不成立（见 ADR-v2-011 / ADR-v2-012 / ADR-v2-013 / ADR-v2-014）。
 """
 import argparse
 import re
@@ -270,9 +271,10 @@ def main():
 
     na("本机不执行 C# 编译器：真实 exe 编译与 --selftest 退出码以 CI 远端实测为准")
     na("R3 起浏览 / 搬运 UI 已接线并编进单 exe，但 CI 不开窗口、不枚举目录；"
-       "transport 默认关闭、真实交互与 shell 运行期未验证；"
-       "NativeMenuHost / 图标缩略图渲染 / 拖放 / H1–H6 取证 / C4 带杀软 VM："
-       "未实现或未验证；M1 与 M3 均不成立")
+       "R4 起 NativeMenuHost 已接线但默认关闭，CI 不实例化 COM；"
+       "transport 与菜单宿主均默认关闭，真实交互与 shell 运行期未验证；"
+       "图标缩略图渲染 / 拖放 / 崩溃哨兵 / 自绘兜底 / H1–H6 取证 / C4 带杀软 VM："
+       "未实现或未验证；M1 / M2 / M3 均不成立")
 
     if errors:
         print("verdict: RED (%d)" % len(errors))

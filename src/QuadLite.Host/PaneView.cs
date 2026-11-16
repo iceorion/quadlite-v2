@@ -14,8 +14,10 @@ namespace QuadLite.Host
     /// 前进并丢弃迟到批次，双击进入子路径，状态栏计数读筛后显示行集。
     ///
     /// 本类型不直接引用 System.IO：目录读取一律经 Fs 层 IDirSource 注入；枚举在后台
-    /// worker 上跑，批次经 Dispatcher 回 UI 线程。真实键鼠交互、拖放、原生菜单、
-    /// 图标与缩略图渲染仍未实现 / 未验证，见 docs/adr/ADR-v2-013.md。
+    /// worker 上跑，批次经 Dispatcher 回 UI 线程。R4 起右键把打开菜单那一刻的
+    /// 选中集 / 目录快照交给 MenuCommands（宿主默认关闭、运行期未验证）；
+    /// 拖放、图标与缩略图渲染仍未实现 / 未验证，见 docs/adr/ADR-v2-013.md、
+    /// docs/adr/ADR-v2-014.md。
     /// </summary>
     public sealed class PaneView : Border
     {
@@ -37,6 +39,7 @@ namespace QuadLite.Host
         private readonly TextBlock caption;
         private CancellationTokenSource cancel;
         private Action<string> onStatus;
+        private Action<IList<PathKey>, PathKey, int> menuSink;
 
         public PaneView(int paneId, PaneState state, IDirSource source)
         {
@@ -61,6 +64,7 @@ namespace QuadLite.Host
             list.SelectionMode = SelectionMode.Extended;
             list.Margin = new Thickness(2.0);
             list.MouseDoubleClick += OnDoubleClick;
+            list.MouseRightButtonUp += OnRightClick;
             dock.Children.Add(list);
 
             this.Child = dock;
@@ -72,6 +76,9 @@ namespace QuadLite.Host
         public int DisplayedCount { get { return list.Items.Count; } }
 
         public void SetStatusSink(Action<string> sink) { onStatus = sink; }
+
+        /// <summary>右键回调：由 MainWindow 把快照交给 R4 菜单宿主，本类不碰 COM。</summary>
+        public void SetMenuSink(Action<IList<PathKey>, PathKey, int> sink) { menuSink = sink; }
 
         /// <summary>导航：generation 前进、旧枚举取消、迟到批次丢弃。</summary>
         public void Navigate(PathKey path)
@@ -182,6 +189,23 @@ namespace QuadLite.Host
             if (entry == null) return;
             // 不读文件系统判断目录 / 文件：交给 IDirSource 枚举，文件会得到空批次。
             Navigate(entry.Key);
+        }
+
+        /// <summary>
+        /// R4：右键那一刻取一份选中集；空白面用当前目录自身作目标。
+        /// 不读实时路径、不自行构造菜单，快照交给 MenuCommands 处理。
+        /// </summary>
+        private void OnRightClick(object sender, MouseButtonEventArgs e)
+        {
+            if (menuSink == null) return;
+            IList<PathKey> keys = Selected();
+            if (keys.Count == 0 && state.Path != null)
+            {
+                List<PathKey> blank = new List<PathKey>();
+                blank.Add(state.Path);
+                keys = blank;
+            }
+            menuSink(keys, state.Path, paneId);
         }
 
         private void Report()

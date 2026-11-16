@@ -206,6 +206,12 @@ def main():
             # R2 分层口径：唯一白名单文件允许托管 COM 声明，其余禁令照旧
             if label == "hand-written COM" and com_policy.is_declaration(rel):
                 continue
+            # R4 单点口径：白名单文件允许 SDK vtable 声明，任何调用形态仍判红
+            if label == "verb scan call":
+                hit = com_policy.verb_hit(rel, text)
+                if hit:
+                    violations.append("%s: %s (`%s`)" % (rel, label, hit))
+                continue
             if rx.search(text):
                 violations.append("%s: %s" % (rel, label))
     if violations:
@@ -217,8 +223,13 @@ def main():
     app_files = sorted(p for p in app.glob("*.cs") if p.is_file()) if app.exists() else []
     app_bad = []
     for p in app_files:
+        rel = "src/QuadLite.App/" + p.name
         text = read(p)
         for label, rx in APP_FORBIDDEN:
+            if label == "verb scan call":
+                if com_policy.verb_hit(rel, text):
+                    app_bad.append("%s: %s" % (p.name, label))
+                continue
             if rx.search(text):
                 app_bad.append("%s: %s" % (p.name, label))
     if app_bad:
@@ -273,8 +284,9 @@ def main():
     else:
         ok("C# 5 语法子集（%d 个 .cs）" % len(cs_files))
 
-    print("  N/A   真实 NativeMenuHost / IContextMenu COM / TrackPopupMenuEx / HMENU / "
-          "崩溃哨兵磁盘标记 / 自绘兜底 UI：未实现 / 未验证")
+    print("  N/A   R4 原生菜单宿主已接线但默认关闭；真实 IContextMenu COM / "
+          "TrackPopupMenuEx 消息循环 / HMENU 生命周期 / 崩溃哨兵磁盘标记 / "
+          "自绘兜底 UI 的运行期行为：未验证（见 docs/adr/ADR-v2-014.md）")
     if errors:
         for e in errors:
             print("  RED   " + e)

@@ -32,6 +32,17 @@ namespace QuadLite.Fs
         public const int FileOperationMethods = 21;
         public const int ProgressSinkMethods = 16;
         public const int ShellItemMethods = 5;
+
+        // R4：um/ShObjIdl_core.h 的 MIDL_INTERFACE 权威值与 SDK vtable 槽位数
+        // （IContextMenu 3 / 2 为 4 / 3 为 5；IShellFolder 为 IUnknown 之后的 10 个）。
+        public const string ContextMenuIid = "000214e4-0000-0000-c000-000000000046";
+        public const string ContextMenu2Iid = "000214f4-0000-0000-c000-000000000046";
+        public const string ContextMenu3Iid = "bcfce0a0-ec17-11d0-8d10-00a0c90f2719";
+        public const string ShellFolderIid = "000214e6-0000-0000-c000-000000000046";
+        public const int ContextMenuMethods = 3;
+        public const int ContextMenu2Methods = 4;
+        public const int ContextMenu3Methods = 5;
+        public const int ShellFolderMethods = 10;
     }
 
     /// <summary>SDK 权威 flags；NoUi 阻止系统模态进度框 / 冲突框抽走消息泵。</summary>
@@ -229,5 +240,192 @@ namespace QuadLite.Fs
         public int ResetTimer() { return 0; }
         public int PauseTimer() { return 0; }
         public int ResumeTimer() { return 0; }
+    }
+
+    // ============ R4：系统原生右键菜单 COM 宿主声明（唯一白名单） ============
+    // 全部 GUID 与 vtable 槽位顺序逐字取自 Windows SDK 10.0.19041.0 的
+    // um/ShObjIdl_core.h；WM_* / TPM_* / MF_* / CMF_* 取自 um/winuser.h 与同头文件。
+    // 三个菜单接口各自列出 IUnknown 之后的全部槽位，CLR 按声明顺序映射 vtable；
+    // 第三槽只是 SDK 规定的声明占位，产品路径从不调用它（B-04 / menu-no-verb-scan）。
+    // 不写函数指针、不改写 vtable、不使用非安全代码块；§5.2「成熟绑定」偏差
+    // 继续沿用 ADR-v2-012 的登记。运行期一律标「未验证」。
+
+    /// <summary>SDK 权威 flags：菜单查询、TrackPopupMenuEx、菜单消息与自有项分隔。</summary>
+    internal static class MenuFlags
+    {
+        public const uint CmfNormal = 0x00000000;
+        public const uint CmfExplore = 0x00000004;
+        public const uint CmfCanRename = 0x00000010;
+        public const uint CmfItemMenu = 0x00000080;
+        public const uint CmfExtendedVerbs = 0x00000100;
+        public const uint TpmReturnCmd = 0x0100;
+        public const uint TpmRightButton = 0x0002;
+        public const uint TpmLeftAlign = 0x0000;
+        public const uint MfSeparator = 0x0800;
+        public const uint MfString = 0x0000;
+        public const uint WmDrawItem = 0x002B;
+        public const uint WmMeasureItem = 0x002C;
+        public const uint WmCommand = 0x0111;
+        public const uint WmInitMenuPopup = 0x0117;
+        public const uint WmMenuSelect = 0x011F;
+        public const uint WsOverlapped = 0x00000000;
+    }
+
+    /// <summary>IContextMenu：IUnknown 之后 3 个槽位，顺序取自 SDK。</summary>
+    [ComImport, Guid(ShellIds.ContextMenuIid), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IContextMenu
+    {
+        [PreserveSig] int QueryContextMenu(IntPtr hmenu, uint indexMenu, uint idCmdFirst,
+            uint idCmdLast, uint uFlags);
+        [PreserveSig] int InvokeCommand(ref InvokeCommandInfo pici);
+        [PreserveSig] int GetCommandString(IntPtr idCmd, uint uType, IntPtr pReserved,
+            IntPtr pszName, uint cchMax);
+    }
+
+    /// <summary>IContextMenu2：在 3 个槽位之后追加 HandleMenuMsg。</summary>
+    [ComImport, Guid(ShellIds.ContextMenu2Iid), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IContextMenu2
+    {
+        [PreserveSig] int QueryContextMenu(IntPtr hmenu, uint indexMenu, uint idCmdFirst,
+            uint idCmdLast, uint uFlags);
+        [PreserveSig] int InvokeCommand(ref InvokeCommandInfo pici);
+        [PreserveSig] int GetCommandString(IntPtr idCmd, uint uType, IntPtr pReserved,
+            IntPtr pszName, uint cchMax);
+        [PreserveSig] int HandleMenuMsg(uint uMsg, IntPtr wParam, IntPtr lParam);
+    }
+
+    /// <summary>IContextMenu3：再追加 HandleMenuMsg2，owner 窗口优先走它。</summary>
+    [ComImport, Guid(ShellIds.ContextMenu3Iid), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IContextMenu3
+    {
+        [PreserveSig] int QueryContextMenu(IntPtr hmenu, uint indexMenu, uint idCmdFirst,
+            uint idCmdLast, uint uFlags);
+        [PreserveSig] int InvokeCommand(ref InvokeCommandInfo pici);
+        [PreserveSig] int GetCommandString(IntPtr idCmd, uint uType, IntPtr pReserved,
+            IntPtr pszName, uint cchMax);
+        [PreserveSig] int HandleMenuMsg(uint uMsg, IntPtr wParam, IntPtr lParam);
+        [PreserveSig] int HandleMenuMsg2(uint uMsg, IntPtr wParam, IntPtr lParam, out IntPtr plResult);
+    }
+
+    /// <summary>IShellFolder：IUnknown 之后 10 个槽位，供 GetUIObjectOf 取菜单对象。</summary>
+    [ComImport, Guid(ShellIds.ShellFolderIid), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IShellFolder
+    {
+        [PreserveSig] int ParseDisplayName(IntPtr hwnd, IntPtr pbc,
+            [MarshalAs(UnmanagedType.LPWStr)] string pszDisplayName,
+            out uint pchEaten, out IntPtr ppidl, ref uint pdwAttributes);
+        [PreserveSig] int EnumObjects(IntPtr hwnd, uint grfFlags, out IntPtr ppenumIDList);
+        [PreserveSig] int BindToObject(IntPtr pidl, IntPtr pbc, ref Guid riid,
+            [MarshalAs(UnmanagedType.Interface)] out object ppv);
+        [PreserveSig] int BindToStorage(IntPtr pidl, IntPtr pbc, ref Guid riid, out IntPtr ppv);
+        [PreserveSig] int CompareIDs(IntPtr lParam, IntPtr pidl1, IntPtr pidl2);
+        [PreserveSig] int CreateViewObject(IntPtr hwndOwner, ref Guid riid, out IntPtr ppv);
+        [PreserveSig] int GetAttributesOf(uint cidl, IntPtr apidl, ref uint rgfInOut);
+        [PreserveSig] int GetUIObjectOf(IntPtr hwndOwner, uint cidl,
+            [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] IntPtr[] apidl,
+            ref Guid riid, IntPtr rgfReserved,
+            [MarshalAs(UnmanagedType.Interface)] out object ppv);
+        [PreserveSig] int GetDisplayNameOf(IntPtr pidl, uint uFlags, out IntPtr pName);
+        [PreserveSig] int SetNameOf(IntPtr hwnd, IntPtr pidl,
+            [MarshalAs(UnmanagedType.LPWStr)] string pszName, uint uFlags, out IntPtr ppidlOut);
+    }
+
+    /// <summary>CMINVOKECOMMANDINFO：SDK 的 9 字段结构，lpVerb 用 MAKEINTRESOURCE 偏移。</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct InvokeCommandInfo
+    {
+        public uint cbSize;
+        public uint fMask;
+        public IntPtr hwnd;
+        public IntPtr lpVerb;
+        public IntPtr lpParameters;
+        public IntPtr lpDirectory;
+        public int nShow;
+        public uint dwHotKey;
+        public IntPtr hIcon;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Point32
+    {
+        public int x;
+        public int y;
+    }
+
+    internal delegate IntPtr MenuWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>WNDCLASSEX：窗口过程用委托字段由运行时封送，不取函数指针。</summary>
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct WndClassEx
+    {
+        public uint cbSize;
+        public uint style;
+        [MarshalAs(UnmanagedType.FunctionPtr)] public MenuWndProc lpfnWndProc;
+        public int cbClsExtra;
+        public int cbWndExtra;
+        public IntPtr hInstance;
+        public IntPtr hIcon;
+        public IntPtr hCursor;
+        public IntPtr hbrBackground;
+        [MarshalAs(UnmanagedType.LPWStr)] public string lpszMenuName;
+        [MarshalAs(UnmanagedType.LPWStr)] public string lpszClassName;
+        public IntPtr hIconSm;
+    }
+
+    /// <summary>菜单会话需要的 Win32 入口，全部集中在本白名单文件。</summary>
+    internal static class MenuNative
+    {
+        [DllImport("shell32.dll")]
+        internal static extern int SHGetDesktopFolder(
+            [MarshalAs(UnmanagedType.Interface)] out IShellFolder pshf);
+
+        [DllImport("ole32.dll")]
+        internal static extern void CoTaskMemFree(IntPtr pv);
+
+        [DllImport("user32.dll")]
+        internal static extern IntPtr CreatePopupMenu();
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DestroyMenu(IntPtr hMenu);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "AppendMenuW")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool AppendMenu(IntPtr hMenu, uint uFlags, IntPtr uIDNewItem,
+            [MarshalAs(UnmanagedType.LPWStr)] string lpNewItem);
+
+        [DllImport("user32.dll")]
+        internal static extern int TrackPopupMenuEx(IntPtr hMenu, uint fuFlags, int x, int y,
+            IntPtr hwnd, IntPtr lptpm);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "RegisterClassExW")]
+        internal static extern ushort RegisterClassEx(ref WndClassEx wc);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "CreateWindowExW")]
+        internal static extern IntPtr CreateWindowEx(uint dwExStyle,
+            [MarshalAs(UnmanagedType.LPWStr)] string lpClassName,
+            [MarshalAs(UnmanagedType.LPWStr)] string lpWindowName,
+            uint dwStyle, int x, int y, int nWidth, int nHeight,
+            IntPtr hWndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DestroyWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "UnregisterClassW")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool UnregisterClass(
+            [MarshalAs(UnmanagedType.LPWStr)] string lpClassName, IntPtr hInstance);
+
+        [DllImport("user32.dll", EntryPoint = "DefWindowProcW")]
+        internal static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetCursorPos(out Point32 lpPoint);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool SetForegroundWindow(IntPtr hWnd);
     }
 }

@@ -291,8 +291,8 @@ def main():
     for p in product:
         rel = p.relative_to(root).as_posix()
         text = read(p)
-        if "GetCommandString" in text:
-            product_bad.append("%s: verb scan" % rel)
+        if com_policy.verb_hit(rel, text):
+            product_bad.append("%s: verb scan (`%s`)" % (rel, com_policy.verb_hit(rel, text)))
         hit = com_policy.declaration_hit(rel, text)
         if hit:
             product_bad.append("%s: hand-written COM (`%s`)" % (rel, hit))

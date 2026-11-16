@@ -12,6 +12,8 @@ import re
 import sys
 from pathlib import Path
 
+import com_policy
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
@@ -44,11 +46,11 @@ REQUIRED = [
     "tools/check_release_specs.py",
     "tools/check_realization_specs.py",
     "tools/com_policy.py", "tools/check_transport_specs.py",
-    "tools/check_ui_specs.py",
+    "tools/check_ui_specs.py", "tools/check_menu_host_specs.py",
     "src/QuadLite.Host/Program.cs", "src/QuadLite.Host/MainWindow.cs",
     "src/QuadLite.Host/SelftestRunner.cs",
     "src/QuadLite.Host/HostPolicies.cs", "src/QuadLite.Host/PaneView.cs",
-    "src/QuadLite.Host/BrowseCommands.cs",
+    "src/QuadLite.Host/BrowseCommands.cs", "src/QuadLite.Host/MenuCommands.cs",
     "src/QuadLite.Host/QuadLite.Host.csproj", "src/QuadLite.Host/app.manifest",
     "src/QuadLite.Core/PathKey.cs", "src/QuadLite.Core/OperationCoordinator.cs",
     "src/QuadLite.Core/LayoutMath.cs", "src/QuadLite.Core/FilterRules.cs",
@@ -63,6 +65,7 @@ REQUIRED = [
     "src/QuadLite.App/ReleaseState.cs",
     "src/QuadLite.Fs/ShellFileOperator.cs",
     "src/QuadLite.Fs/ShellComInterop.cs", "src/QuadLite.Fs/ShellTransport.cs",
+    "src/QuadLite.Fs/NativeMenuHost.cs",
     "tests/QuadLite.Tests/Program.cs",
     ".github/workflows/ci.yml", "docs/adr/ADR-v2-001.md", "docs/adr/ADR-v2-002.md",
     "docs/adr/ADR-v2-004.md", "docs/adr/ADR-v2-005.md", "docs/adr/ADR-v2-006.md",
@@ -70,6 +73,7 @@ REQUIRED = [
     "docs/adr/ADR-v2-009.md", "docs/adr/ADR-v2-010.md",
     "docs/adr/ADR-v2-011.md", "docs/adr/ADR-v2-012.md",
     "docs/adr/ADR-v2-013.md",
+    "docs/adr/ADR-v2-014.md",
     "docs/negative-controls.md", "docs/run-ledger.md",
 ]
 
@@ -100,9 +104,10 @@ def bad(msg):
     print("  FAIL  " + msg)
 
 
+IGNORED_PARTS = {".git", "__pycache__", "dist", "bin", "obj", "data", ".vs"}
 files = sorted(
     p for p in ROOT.rglob("*")
-    if p.is_file() and ".git" not in p.parts and "__pycache__" not in p.parts
+    if p.is_file() and not any(part in IGNORED_PARTS for part in p.parts)
     and p.name != Path(__file__).name
 )
 names = {p.name for p in files}
@@ -140,6 +145,8 @@ else:
 # 4. 环境偶然与私有资产
 hits = []
 for p in files:
+    if p.suffix.lower() in FORBIDDEN_SUFFIX:
+        continue  # 二进制 / 私有产物由第 2 节判定，逐行扫描跳过以免解码崩溃
     for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
         m = SENSITIVE.search(line)
         if m:
@@ -196,8 +203,8 @@ for label, cond in [
 # 7. 规格阶段如实标注（B5 菜单专项合规在本脚本内实测）
 src_cs_files = sorted(p for p in (ROOT / "src").rglob("*.cs") if p.is_file())
 verb_hits = [p.relative_to(ROOT).as_posix() for p in src_cs_files
-             if re.search(r"\bGetCommandString\b",
-                          p.read_text(encoding="utf-8", errors="replace"))]
+             if com_policy.verb_hit(p.relative_to(ROOT).as_posix(),
+                                    p.read_text(encoding="utf-8", errors="replace"))]
 if verb_hits:
     bad("产品程序集出现 verb 查询：%s" % ", ".join(verb_hits))
 else:

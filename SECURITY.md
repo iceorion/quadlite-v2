@@ -4,10 +4,10 @@
 
 | 版本 | 状态 |
 |---|---|
-| 规格 / B5 系统原生右键菜单规则层（当前） | 无 UI 可运行版本，不适用漏洞修复分支；`src/` 下为 L0 纯函数层 + 编排 / 端口契约 + Fs 适配器 + 外壳 / 列表视图 / 菜单状态内核，C# runner 可在 CI 编译运行；真实文件搬运能力、WPF 窗口 / 列表控件与系统原生菜单 COM 宿主均未实现 |
+| 规格 / R4 实现批次（当前，未发布） | 无对外发布版本，不适用漏洞修复分支；`src/` 下为 L0 纯函数层 + 编排 / 端口契约 + Fs 适配器与两套托管 COM 声明 + 外壳 / 列表视图 / 菜单 / 图标 / 自测 / 发布线状态内核 + WPF Host；CI 以 C# 5 编译并运行零依赖 runner、把 Fs / App 分别编成 library（不运行），并真编译单个 `QuadLite.exe` 跑无窗口 `--selftest`；真实文件搬运与系统原生菜单宿主均**默认关闭、运行期未验证** |
 | M1 MVP 起（B0–B5） | 待发布；发布后按 `design-v2.md` §8.4 里程碑补充支持版本与修复策略 |
 
-B0 起工程骨架、检查链与 CI 已落地；B1 起 `src/` 有 L0 纯函数层，B2 起另有编排与适配器层，B3 起另有外壳状态内核，B4 起另有列表视图规则层与状态内核，B5 起另有系统原生右键菜单规则层与状态内核，CI 以 C# 5 编译并运行零依赖 runner、另把 Fs 层与 App 状态内核分别编成 library（不运行），逐批结论见 `docs/run-ledger.md`。但 CI **不含真实 WPF 窗口 / XAML / 消息循环 / 列表控件 / 原生菜单 COM 宿主构建，也不运行真实 shell 搬运**：`IFileOperation`、`IContextMenu`、系统剪贴板、watcher 行为、冲突 / 进度 UI、真实目录枚举、拖放、崩溃哨兵磁盘标记、自绘兜底 UI、单文件出包与 exe 形态 `--selftest` 均未实跑，结论记「未验证」（见 `docs/adr/ADR-v2-002.md`、`ADR-v2-004.md`、`ADR-v2-005.md`、`ADR-v2-006.md` 与 `ADR-v2-007.md`）。下面的日志与崩溃摘要格式是**数据格式规范**（`design-v2.md` §5.5 / §6.4），不是已实现功能。
+B0 起工程骨架、检查链与 CI 已落地；B1 起 `src/` 有 L0 纯函数层，B2 起另有编排与适配器层，B3 起另有外壳状态内核，B4 起另有列表视图规则层与状态内核，B5 起另有系统原生右键菜单规则层与状态内核，R1 起另有真实 WPF Host，R2 起另有 `IFileOperation` 托管 COM 绑定与 transport，R3 起窗口接上目录枚举 / 列表控件 / 搬运命令，R4 起 Fs 层接上 `IContextMenu` 菜单宿主（默认关闭）。CI 以 C# 5 编译并运行零依赖 runner、把 Fs 层与 App 状态内核分别编成 library（不运行），并由 `real-exe-build` / `real-exe-selftest` 真编译单个 `QuadLite.exe` 且实跑无窗口 `--selftest`，逐批结论见 `docs/run-ledger.md`。但 CI **不开窗口、不枚举目录、不实例化 COM**：真实 `IFileOperation` 搬运、`IContextMenu` 菜单与消息循环、系统剪贴板、watcher 行为、冲突 / 进度 UI、真实键鼠交互、拖放、崩溃哨兵磁盘标记、自绘兜底 UI、单文件出包在真实机器上的便携行为与 H1–H6 取证一律记「未验证」（见 `docs/adr/ADR-v2-011.md`、`ADR-v2-012.md`、`ADR-v2-013.md`、`ADR-v2-014.md`）。下面的日志与崩溃摘要格式是**数据格式规范**（`design-v2.md` §5.5 / §6.4），不是已实现功能。
 
 ## 漏洞上报
 

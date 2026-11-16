@@ -125,7 +125,7 @@ def main():
             com_hits.append("%s: `%s`" % (rel, hit))
         if com_policy.RAW_VTABLE.search(text):
             raw_hits.append(rel + ": raw vtable")
-        if com_policy.VERB_SCAN.search(text) or com_policy.MENU_DELETION.search(text):
+        if com_policy.verb_hit(rel, text) or com_policy.MENU_DELETION.search(text):
             verb_hits.append(rel)
     if com_hits:
         bad("非白名单文件出现 COM 声明：%s" % "; ".join(com_hits[:5]))
@@ -151,7 +151,8 @@ def main():
     if id_bad:
         bad("COM GUID 与 SDK 头文件不一致：%s" % "; ".join(id_bad))
     else:
-        ok("四个 COM 标识符与 Windows SDK 10.0.19041.0 逐字一致")
+        ok("%d 个 COM 标识符与 Windows SDK 10.0.19041.0 逐字一致" %
+           len(com_policy.EXPECTED_IDS))
 
     # 4. vtable 方法顺序
     blocks = dict((name, body) for name, body in INTERFACE_BLOCK.findall(decl_text))
@@ -166,7 +167,8 @@ def main():
     if order_bad:
         bad("COM vtable 顺序被破坏：%s" % "; ".join(order_bad))
     else:
-        ok("三段 vtable 方法顺序（21 / 16 / 5）与 SDK 一致")
+        ok("%d 段 vtable 方法顺序与 SDK 一致（R2 三段 + R4 四段）" %
+           len(com_policy.EXPECTED_METHODS))
 
     # 5. flags 常量
     flag_bad = [label for label, rx in FLAG_CONSTANTS if not re.search(rx, decl_text)]

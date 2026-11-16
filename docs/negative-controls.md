@@ -216,6 +216,36 @@ R3 的 15 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 真实键鼠交互、异步枚举时序、四档实际渲染与真实 shell 搬运由 H1–H6 真机取证，本机与 CI 均不打开窗口、不实例化 COM。
 R3 只把「可编译、可静态判定的浏览与搬运链路」接入证据闭环，**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-013.md` 偏差登记）。CI 结论已回填到 `docs/run-ledger.md` R3 行与 `ADR-v2-013.md`：首次功能提交 `d8ba545` 的 run `43716871530` 在 `real-exe-build` 判红（C# 5 CS0165），修复提交 `0836109` 复跑 run `43717485240` 结论 `success`，二十个门卡 / 编译步骤逐项 `success`（`check-ui-specs` / `real-exe-build` / `real-exe-selftest` 全绿）；首次判红不作为通过证据。
 
+## R4 登记（系统原生菜单 COM 宿主）
+
+| 不变量 | 负向对照用例 | 应红门卡 |
+|---|---|---|
+| Fs 宿主与 Host 接线齐备 | 临时副本删 `NativeMenuHost.cs` / `MenuCommands.cs` | `check-menu-host-specs`（交付物 / Host 接线） |
+| ADR-014 随批次落地 | 临时副本删 `ADR-v2-014.md` | `check-menu-host-specs`（证据文档） |
+| 四个 COM GUID 与 SDK 一致 | 临时副本改 `ContextMenuIid` 末位 | `check-menu-host-specs`（SDK 权威 GUID） |
+| 3 / 4 / 5 / 10 段 vtable 顺序 | 临时副本改 `IContextMenu3` 方法顺序 | `check-menu-host-specs`（vtable 顺序） |
+| 白名单内不得出现 verb 调用 | 临时副本在白名单注入调用形态 | `check-menu-host-specs`（verb 口径） |
+| 白名单外不得出现 SDK 方法名字面量 | 临时副本往 Host 注入该方法名 | `check-menu-host-specs`、`check-boundaries` B-04 |
+| 禁止函数指针式 vtable | 临时副本注入 `Marshal.ReadIntPtr` | `check-menu-host-specs`（禁用模式） |
+| 标准四步齐全且有序 | 临时副本删 `TrackPopupMenuEx` 调用 / 打乱四步顺序 | `check-menu-host-specs`（标准四步） |
+| `idCmdFirst` / `maxId` / 偏移 / 越界丢弃硬校验 | 临时副本改 `MenuInvokeRules.IdCmdFirst` 或删 `InvokeIdInRange` | `check-menu-host-specs`（参数硬校验） |
+| 自有 ID 段 ≥ `0x8000` 独立分组、零删项 | 临时副本删 `MenuModel.OwnIdBase` / 注入 `DeleteMenu` | `check-menu-host-specs`（自有项分组） |
+| 五类消息转发且 `HandleMenuMsg2` 优先 | 临时副本删 `MenuFlags.WmDrawItem` / `MustForward` | `check-menu-host-specs`（消息转发） |
+| try-finally 且 HMENU 先于 COM 释放 | 临时副本删 `finally` / 调换释放顺序 | `check-menu-host-specs`（释放规则） |
+| 宿主默认关闭 | 临时副本把 `if (!enabled)` 改成 `if (false)` | `check-menu-host-specs`（默认关闭） |
+| Host 不自行启用宿主 | 临时副本在 `MenuCommands` 注入 `.Enable()` | `check-menu-host-specs`（诚实标注） |
+| 派发只认同一份不可变 `MenuTarget` 快照 | 临时副本删 UI 侧 `new MenuTarget(` / 删快照判据 | `check-menu-host-specs`（目标快照） |
+| CI 与单程序集工程资产纳入 R4 | 临时副本删 `check-menu-host-specs` 步骤 / 删 csproj 的 `MenuCommands.cs` 编译项 | `check-menu-host-specs`（构建 / CI 链） |
+| 规格 §8.1 不写实现批次 | 临时副本往 `design-v2.md` 塞 `\| R4 \|` 行 | `check-menu-host-specs`（规格一致性） |
+| Host 零 `using System.IO` / 仍为 C# 5 语法子集 | 临时副本注入 `using System.IO;` 或 C# 6 字符串插值 | `check-menu-host-specs`（分层纪律 / C# 5） |
+| 真实 exe 编入 R4 且产品 `--selftest` 增 8 组断言 | CI `real-exe-build` / `real-exe-selftest`（不窗口、不枚举目录、不实例化 COM） | CI 远端实测 |
+
+R4 的 19 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；
+真实 shell 扩展、owner-draw 消息时序、PIDL / HMENU 生命周期、`TrackPopupMenuEx` 模态循环与崩溃哨兵行为由 H1–H6 真机取证，本机与 CI 均不实例化 COM。
+R4 只把「可编译、可静态判定的原生菜单链路」接入证据闭环：SDK 逐字对应声明 + 标准四步 + owner 窗口消息转发 + 快照派发 + try-finally 释放，
+但宿主默认关闭（规格 §5.2 默认路径的明确偏差，见 `ADR-v2-014` D5），**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-014.md` 偏差登记）。
+CI 结论待回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -226,19 +256,21 @@ R3 只把「可编译、可静态判定的浏览与搬运链路」接入证据�
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
 | 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 实测通过（run `42232312609`，本机未验证） |
-| 产品程序集 `GetCommandString` 命中 0 次 | `check-menu-specs` + `check-open-source` 扫描 `src/**/*.cs` | 本机实测通过（R3 后 103 个 .cs，命中 0 次；负向对照注入后必红） |
+| 产品程序集 verb 查询命中 0 次 | `check-menu-specs` / `check-menu-host-specs` / `check-open-source` 统一按 `com_policy.verb_hit` 扫描 `src/**/*.cs` | 本机实测通过（R4 后 105 个 .cs：唯一白名单只含 SDK vtable 的方法名声明、零调用；白名单外出现方法名即判红，注入调用形态亦必红） |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | R2 `ShellComInterop.cs` + `ShellTransport.cs` 声明并编译；运行期由 H1–H6 取证 | **声明与编译已落地、运行期未验证**（§5.2「成熟绑定」偏差见 `ADR-v2-012`） |
 | 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
 | 冲突 / 进度非模态面板 | B3 外壳（偏差，见 `ADR-v2-005` D6） | **未实现 / 未验证** |
 | 危险判级真实绑定 | 外壳注入 `IDangerPolicy` | **未验证**（B2 只跑 Fake） |
 | Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
-| 真实 WPF 窗口 / 消息循环 | R1 `src/QuadLite.Host/` + R3 `MainWindow` 重写 + CI `real-exe-build` | **部分实现**：窗口、消息循环、四档落位与工具栏已编译（CI 实测），XAML 明确不用；事件绑定的真实交互、四档实际渲染与人工启动窗口仍未实现 / 未验证 |
+| 真实 WPF 窗口 / 消息循环 | R1 `src/QuadLite.Host/` + R3 `MainWindow` 重写 + CI `real-exe-build` | **部分实现**：窗口、消息循环、四档落位与工具栏已编译（CI 实测），XAML 明确不用；晃晃已在本机人工启动单 exe 并测试（`dist/single/BUILD.txt` 七字段实证，133,120 B），但具体交互用例与逐项结论未记录，四档实际渲染与事件绑定时序仍标「未验证」 |
 | 真实 WPF 列表控件 / 目录枚举 / 搬运命令 | R3 `PaneView` / `BrowseCommands` + CI `real-exe-build` | **部分实现**：ListBox、`IDirSource` 枚举、迟到批次丢弃与搬运请求链路已编译（CI 实测），运行期完全未验证 |
-| 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 / 图标与缩略图渲染 | R4 / R5 / 后续批次 | **未实现 / 未验证** |
-| 真实 `NativeMenuHost` / `IContextMenu` / `IContextMenu2/3` COM 调用、HMENU 生命周期、`TrackPopupMenuEx` 消息循环 | B5 后续批次 / B7 | **未实现 / 未验证**（成熟 COM 绑定未定，见 `ADR-v2-007` D6） |
+| 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 / 图标与缩略图渲染 | R5 / 后续批次 | **未实现 / 未验证** |
+| 真实 `NativeMenuHost` / `IContextMenu` / `IContextMenu2/3` COM 调用、HMENU 生命周期、`TrackPopupMenuEx` 消息循环 | R4 `NativeMenuHost.cs` + `check-menu-host-specs` + CI `real-exe-build` | **部分实现**：SDK 逐字对应声明、标准四步、owner 窗口五类消息转发、参数硬校验、快照派发与 try-finally 释放已编译（CI 实测）；宿主默认关闭、CI 不实例化 COM，运行期完全未验证 |
+| R4 宿主默认关闭与规格 §5.2「默认路径 = 系统原生菜单」的偏差 | 崩溃哨兵与 H1–H6 真机取证完成后另议 | **偏差已登记**（`ADR-v2-014` D5）；未启用时右键只回「未执行 / 未验证」 |
+| 纯 Win32 `GetMenuItemInfoW` 菜单文本读取 / L3 崩溃哨兵磁盘标记 / 自绘兜底 UI / L4 隔离宿主 | 后续批次 | **未实现 / 未验证** |
 | 崩溃哨兵磁盘标记 `data\menu-pending.json` / `menu-safe.json` TTL 过期、自绘兜底 UI 与一键重试按钮 | B5 后续批次 / B6 | **未实现 / 未验证**（只交不可变状态内核与结构化提示串） |
-| 自有命令真实菜单项插入（ID ≥ `0x8000`） | B5 后续批次 | **未实现 / 未验证**（只交源头消重纯函数判据） |
+| 自有命令真实菜单项插入（ID ≥ `0x8000`） | R4 `AppendMenu` 一条分隔线独立成组 | **部分实现**：标签由 Host 传入并经 `MenuFusionRules.Resolve` 源头消重，未与系统项文本实际比对（纯 Win32 读取路径未接入），运行期未验证 |
 | `FakeShellExtension` 归位 `QuadLite.Probe` 项目 | 建 Probe 项目时迁移 | **偏差已登记**（暂驻 `tests/QuadLite.Tests/MenuFakes.cs`，见 `ADR-v2-007` D6） |
 | 真实目录枚举（`FindFirstFileExW` + `LARGE_FETCH`、4096 / 批） | Fs 层后续批次 | **未实现 / 未验证**（`DirSource` 当前为 128 / 批，见 `ADR-v2-006` D6） |
 | 名称拼音分桶 / 修改日期月历 / 类型动态枚举 | B4 后续批次 | **未实现 / 未验证**（只落地桶键组合逻辑） |
@@ -287,6 +319,8 @@ B7 起 CI 再增加 `check-selftest-specs`；`csharp-runner` 的编译命令自�
 B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 10 组 B8 发布线），报告 120 → 130 行，`csharp-app-compile` 编译 12 个 App 状态内核 .cs，仍只编译、不运行、不引用呈现框架程序集；`run_tests.py` 扩到 75 组 / 63 条负向对照，本机实测绿。§8.3 依赖链七节点、DPI 四档与降级链由 `check-release-specs` **解析规格原文逐项比对**，改序或改数值即判红；C4 零误报门槛与 M3 证据闭环另由第 6 / 7 项核对。H1–H6 真实取证、C4 带杀软 VM、OV 签名与产品 exe 出包都不在 CI 内，相关项维持「未验证」，M3 不成立。**首次实跑已通过**：run `42361122709`（head `97fd31d`，含 B8 功能提交 `896a446` 与账本回填提交 `97fd31d`），十五个门卡 / 编译步骤逐项 `success`，其中 `check-release-specs` `success`、`csharp-runner` 退出码 0 ⇒ 71 组 `ok=True`、`verdict: GREEN`、`csharp-app-compile`（12 个 .cs）编译成功且不运行；日志端点匿名 403，runner 结论沿用前批「步骤成功即退出码 0」判据。本机不执行 C# 编译器，不把静态绿写成算法跑通或可发布。逐批结论见 `docs/run-ledger.md`。
 
 R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 在 R1 时扩到 89 组 / 76 条负向对照；R2 起再扩到 102 组 / 88 条负向对照（新增 `check-transport-specs` 与 12 条托管 COM 契约对照），真实 `IFileOperation` 声明与 transport 编入 Fs 层但运行期完全未验证；R3 起再扩到 118 组 / 103 条负向对照（新增 `check-ui-specs` 与 15 条浏览 / 搬运 UI 契约对照），四层 103 个 .cs 一次编成单 exe，但 CI 不开窗口、不枚举目录、不实例化 COM。**首次实跑已通过**：run `42376298215`（head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 均 `success`，结论已回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定运行期、真实键鼠交互、四档实际渲染、原生菜单 COM 宿主、图标缩略图渲染与 H1–H6 取证一律维持「未验证」；列表控件 / 目录枚举 / 搬运命令已编译但运行期未验证。
+
+R4 起 CI 再增加 `check-menu-host-specs` 一步（共二十一个门卡 / 编译步骤）：静态核对 SDK 逐字对应声明、标准四步、消息转发、目标快照、释放、默认关闭与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第二套 COM 声明的 Fs 层与 Host 右键接线一并编进单 exe（四层 105 个 .cs），`real-exe-selftest` 增 8 组 R4 契约断言；`run_tests.py` 扩到 138 组 / 122 条负向对照（19 条 R4 逐条实测变红）。CI 仍只编译、不实例化 COM、不弹菜单、不开窗口，真实 shell 扩展与菜单运行期一律「未验证」；宿主默认关闭是 §5.2 默认路径的明确偏差（见 `ADR-v2-014` D5）。**CI 结论待回填**，本机不执行 C# 编译器。
 
 ## 写入例外清单
 

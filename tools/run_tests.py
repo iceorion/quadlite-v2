@@ -15,7 +15,8 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 十类发布线静态契约负向对照；R1 起增加 check-realization-specs 正向 +
 十类真实宿主静态契约负向对照；R2 起增加 check-transport-specs 正向 +
 十二类托管 COM 绑定静态契约负向对照；R3 起增加 check-ui-specs 正向 +
-十五类浏览 / 搬运 UI 静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+十五类浏览 / 搬运 UI 静态契约负向对照；R4 起增加 check-menu-host-specs 正向 +
+十九类原生菜单 COM 宿主静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 由 CI 的
 real-exe-build / real-exe-selftest 两步编译并实跑 --selftest。
 """
@@ -742,6 +743,145 @@ def mutate_drop_ci_transport(dst):
     p.write_text(broken, encoding="utf-8")
 
 
+def negative_menu_host_specs(label, mutate):
+    """临时副本里破坏一条 R4 原生菜单宿主契约，check-menu-host-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe", "dist"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_menu_host_specs.py"),
+                       "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-menu-host-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def _r4_decl(dst):
+    return dst / "src" / "QuadLite.Fs" / "ShellComInterop.cs"
+
+
+def _r4_impl(dst):
+    return dst / "src" / "QuadLite.Fs" / "NativeMenuHost.cs"
+
+
+def _r4_ui(dst):
+    return dst / "src" / "QuadLite.Host" / "MenuCommands.cs"
+
+
+def _r4_replace(path, old, new):
+    text = path.read_text(encoding="utf-8")
+    broken = text.replace(old, new)
+    assert broken != text, "negative control did not apply: " + old
+    path.write_text(broken, encoding="utf-8")
+
+
+def mutate_r4_delete_host_impl(dst):
+    _r4_impl(dst).unlink()
+
+
+def mutate_r4_delete_ui_impl(dst):
+    _r4_ui(dst).unlink()
+
+
+def mutate_r4_drop_adr(dst):
+    (dst / "docs" / "adr" / "ADR-v2-014.md").unlink()
+
+
+def mutate_r4_guid_drift(dst):
+    _r4_replace(_r4_decl(dst),
+                "bcfce0a0-ec17-11d0-8d10-00a0c90f2719",
+                "bcfce0a0-ec17-11d0-8d10-00a0c90f2718")
+
+
+def mutate_r4_vtable_drift(dst):
+    _r4_replace(_r4_decl(dst), "int HandleMenuMsg2(", "int HandleMenuMsg2Renamed(")
+
+
+def mutate_r4_verb_call_in_whitelist(dst):
+    p = _r4_decl(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: menu.GetCommandString(IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero, 0);\n",
+                 encoding="utf-8")
+
+
+def mutate_r4_verb_name_outside(dst):
+    p = _r4_ui(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: GetCommandString must never appear outside the whitelist\n",
+                 encoding="utf-8")
+
+
+def mutate_r4_raw_vtable(dst):
+    p = _r4_decl(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: Marshal.ReadIntPtr(IntPtr.Zero, 0);\n",
+                 encoding="utf-8")
+
+
+def mutate_r4_missing_step(dst):
+    _r4_replace(_r4_impl(dst), "parent.GetUIObjectOf(", "parent.GetUIObjectOfDisabled(")
+
+
+def mutate_r4_id_range_drift(dst):
+    _r4_replace(_r4_impl(dst), "(uint)MenuInvokeRules.IdCmdFirst", "0")
+
+
+def mutate_r4_no_message_forward(dst):
+    _r4_replace(_r4_impl(dst), "HandleMenuMsg2(", "HandleMenuMsg2Disabled(")
+
+
+def mutate_r4_no_release(dst):
+    _r4_replace(_r4_impl(dst), "MenuNative.DestroyMenu", "MenuNative.KeepMenu")
+
+
+def mutate_r4_enabled_by_default(dst):
+    _r4_replace(_r4_impl(dst), "if (!enabled)", "if (false)")
+
+
+def mutate_r4_ui_enables_host(dst):
+    p = _r4_ui(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: host.Enable();\n", encoding="utf-8")
+
+
+def mutate_r4_no_snapshot(dst):
+    _r4_replace(_r4_impl(dst),
+                "MenuTargetSnapshotRules.DispatchUsesSameSnapshot(",
+                "MenuTargetSnapshotRules.DispatchUsesSameSnapshotDisabled(")
+
+
+def mutate_r4_ci_step_removed(dst):
+    p = dst / ".github" / "workflows" / "ci.yml"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("      - name: check-menu-host-specs\n"
+                          "        run: python tools/check_menu_host_specs.py\n", "")
+    assert broken != text, "negative control did not apply: ci step"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_r4_spec_drift(dst):
+    p = dst / "design-v2.md"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n| R4 | 原生菜单宿主（擅自写进规格） | menu-* |\n",
+                 encoding="utf-8")
+
+
+def mutate_r4_missing_csproj_entry(dst):
+    p = dst / "src" / "QuadLite.Host" / "QuadLite.Host.csproj"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('    <Compile Include="MenuCommands.cs" />\n', "")
+    assert broken != text, "negative control did not apply: csproj entry"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_r4_host_io(dst):
+    p = _r4_ui(dst)
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
 def negative_ui_specs(label, mutate):
     """临时副本里破坏一条 R3 浏览 / 搬运 UI 契约，check-ui-specs 必须变红。"""
     with tempfile.TemporaryDirectory() as td:
@@ -890,6 +1030,7 @@ def main():
     expect_green("check-realization-specs", script("check_realization_specs.py"))
     expect_green("check-transport-specs", script("check_transport_specs.py"))
     expect_green("check-ui-specs", script("check_ui_specs.py"))
+    expect_green("check-menu-host-specs", script("check_menu_host_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -1002,6 +1143,25 @@ def main():
     negative_ui_specs("spec-batch-drift", mutate_spec_r3_drift)
     negative_ui_specs("ci-ui-removed", mutate_drop_ci_ui)
     negative_ui_specs("missing-csproj-entry", mutate_drop_csproj_ui_entry)
+    negative_menu_host_specs("missing-host-impl", mutate_r4_delete_host_impl)
+    negative_menu_host_specs("missing-ui-impl", mutate_r4_delete_ui_impl)
+    negative_menu_host_specs("missing-adr", mutate_r4_drop_adr)
+    negative_menu_host_specs("guid-drift", mutate_r4_guid_drift)
+    negative_menu_host_specs("vtable-order-drift", mutate_r4_vtable_drift)
+    negative_menu_host_specs("verb-call-in-whitelist", mutate_r4_verb_call_in_whitelist)
+    negative_menu_host_specs("verb-name-outside-whitelist", mutate_r4_verb_name_outside)
+    negative_menu_host_specs("raw-vtable", mutate_r4_raw_vtable)
+    negative_menu_host_specs("missing-step", mutate_r4_missing_step)
+    negative_menu_host_specs("id-range-drift", mutate_r4_id_range_drift)
+    negative_menu_host_specs("no-message-forward", mutate_r4_no_message_forward)
+    negative_menu_host_specs("no-release", mutate_r4_no_release)
+    negative_menu_host_specs("enabled-by-default", mutate_r4_enabled_by_default)
+    negative_menu_host_specs("ui-enables-host", mutate_r4_ui_enables_host)
+    negative_menu_host_specs("no-snapshot", mutate_r4_no_snapshot)
+    negative_menu_host_specs("ci-step-removed", mutate_r4_ci_step_removed)
+    negative_menu_host_specs("spec-batch-drift", mutate_r4_spec_drift)
+    negative_menu_host_specs("missing-csproj-entry", mutate_r4_missing_csproj_entry)
+    negative_menu_host_specs("host-io", mutate_r4_host_io)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

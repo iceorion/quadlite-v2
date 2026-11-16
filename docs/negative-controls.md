@@ -244,7 +244,7 @@ R4 的 19 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 真实 shell 扩展、owner-draw 消息时序、PIDL / HMENU 生命周期、`TrackPopupMenuEx` 模态循环与崩溃哨兵行为由 H1–H6 真机取证，本机与 CI 均不实例化 COM。
 R4 只把「可编译、可静态判定的原生菜单链路」接入证据闭环：SDK 逐字对应声明 + 标准四步 + owner 窗口消息转发 + 快照派发 + try-finally 释放，
 但宿主默认关闭（规格 §5.2 默认路径的明确偏差，见 `ADR-v2-014` D5），**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-014.md` 偏差登记）。
-CI 结论待回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`。
+CI 结论已回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`：run `43874542767`（head `fd11116`）`gates` job `success`，二十一个门卡 / 编译步骤逐项 `success`（含 `check-menu-host-specs` / `real-exe-build` / `real-exe-selftest`）；CI 只编译、不实例化 COM，菜单运行期仍「未验证」。
 
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
@@ -320,7 +320,7 @@ B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 
 
 R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 在 R1 时扩到 89 组 / 76 条负向对照；R2 起再扩到 102 组 / 88 条负向对照（新增 `check-transport-specs` 与 12 条托管 COM 契约对照），真实 `IFileOperation` 声明与 transport 编入 Fs 层但运行期完全未验证；R3 起再扩到 118 组 / 103 条负向对照（新增 `check-ui-specs` 与 15 条浏览 / 搬运 UI 契约对照），四层 103 个 .cs 一次编成单 exe，但 CI 不开窗口、不枚举目录、不实例化 COM。**首次实跑已通过**：run `42376298215`（head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 均 `success`，结论已回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定运行期、真实键鼠交互、四档实际渲染、原生菜单 COM 宿主、图标缩略图渲染与 H1–H6 取证一律维持「未验证」；列表控件 / 目录枚举 / 搬运命令已编译但运行期未验证。
 
-R4 起 CI 再增加 `check-menu-host-specs` 一步（共二十一个门卡 / 编译步骤）：静态核对 SDK 逐字对应声明、标准四步、消息转发、目标快照、释放、默认关闭与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第二套 COM 声明的 Fs 层与 Host 右键接线一并编进单 exe（四层 105 个 .cs），`real-exe-selftest` 增 8 组 R4 契约断言；`run_tests.py` 扩到 138 组 / 122 条负向对照（19 条 R4 逐条实测变红）。CI 仍只编译、不实例化 COM、不弹菜单、不开窗口，真实 shell 扩展与菜单运行期一律「未验证」；宿主默认关闭是 §5.2 默认路径的明确偏差（见 `ADR-v2-014` D5）。**CI 结论待回填**，本机不执行 C# 编译器。
+R4 起 CI 再增加 `check-menu-host-specs` 一步（共二十一个门卡 / 编译步骤）：静态核对 SDK 逐字对应声明、标准四步、消息转发、目标快照、释放、默认关闭与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第二套 COM 声明的 Fs 层与 Host 右键接线一并编进单 exe（四层 105 个 .cs），`real-exe-selftest` 增 8 组 R4 契约断言；`run_tests.py` 扩到 138 组 / 122 条负向对照（19 条 R4 逐条实测变红）。CI 仍只编译、不实例化 COM、不弹菜单、不开窗口，真实 shell 扩展与菜单运行期一律「未验证」；宿主默认关闭是 §5.2 默认路径的明确偏差（见 `ADR-v2-014` D5）。**首次实跑已通过**：run `43874542767`（head `fd11116`，含 R4 功能提交 `cfed91a` 与账本回填提交 `fd11116`），`gates` job 结论 `success`，二十一个门卡 / 编译步骤逐项 `success`，其中 `check-menu-host-specs` `success`、`csharp-fs-compile` `success`、`real-exe-build` `success` ⇒ 四层 105 个 .cs 一次编成单 exe 且 `BUILD.txt` 七字段齐、`real-exe-selftest` `success` ⇒ 产品 `--selftest` 报告 ≥100 行、`verdict: GREEN`、退出码 0（含 8 组 R4 断言）；按 jobs API 的 step `conclusion` 记录，日志端点匿名 403 未读原文。本机不执行 C# 编译器，结论只记 CI 远端实测。
 
 ## 写入例外清单
 

@@ -20,6 +20,9 @@ name: gates
 # （独立 STA / SIIGBF flags / 8 秒看门狗 / try-finally 释放 / 默认关闭），
 # Host 列表项模板带图标位；图片解码走 WPF 内置 WIC 系统包装，不新增手写 COM 声明。
 # CI 仍只编译单 exe 与跑无窗口 --selftest：不开窗口、不枚举目录、不实例化 COM。
+# R6 起新增 real-exe-probe-com（--diagnose 只做 COM 实例化探针，record-only 不判通过）
+# 与 upload-artifact（产出 exe 供本机交互桌面做真机验证）；两者都不改 Normal 路径，
+# 三个宿主仍默认关闭，M1 / M2 / M3 仍不成立。
 # R4 菜单宿主、R5 图标 / 缩略图取图宿主都已接线但默认关闭；CI 不实例化 COM、
 # 不解码、不写 thumbcache，菜单与图标呈现运行期一律标「未验证」；
 # 拖放 / 七档视图与筛选仍未接入；
@@ -145,3 +148,32 @@ jobs:
           if ($lines[-1] -ne 'verdict: GREEN') { Write-Host "selftest last line: $($lines[-1])"; Get-Content -LiteralPath $out; exit 1 }
           if ($p.ExitCode -ne 0) { Write-Host "selftest exit $($p.ExitCode)"; exit 1 }
           Write-Host "product --selftest: $($lines.Count) lines, verdict GREEN, exit 0"
+      # R6 阶段 0：真机 COM 实例化探针。目的是「拿结论」，不是「判通过」：
+      # Session 0 下 COM 可能实例化失败，那本身就是有价值的证据，因此本步骤
+      # 无论探针结论如何都 exit 0，只把 stdout 原样落盘并打进日志供审阅。
+      - name: real-exe-probe-com (R6 stage 0, record-only, no pass/fail claim)
+        shell: pwsh
+        run: |
+          $dist = Join-Path $env:RUNNER_TEMP 'quadlite-dist'
+          $exe = Join-Path $dist 'QuadLite.exe'
+          $out = Join-Path $dist 'PROBE-COM.txt'
+          try {
+            $p = Start-Process -FilePath $exe -ArgumentList '--diagnose' -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError "$dist/PROBE-COM.err.txt" -ErrorAction Stop
+            $code = $p.ExitCode
+          } catch {
+            "probe-com: process-launch-failed detail=$($_.Exception.GetType().Name)" | Out-File -LiteralPath $out -Encoding utf8
+            $code = -1
+          }
+          Get-Content -LiteralPath $out -Encoding UTF8 | ForEach-Object { Write-Host $_ }
+          Write-Host "probe-com process exit=$code (record-only; COM instantiation verdict is in the line above, not asserted here)"
+          if (-not (Test-Path -LiteralPath $out)) { Write-Host 'probe-com output missing'; exit 1 }
+      - name: upload-real-exe (R6 artifact for local hands-on verification)
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuadLite-r6-exe
+          path: |
+            ${{ runner.temp }}/quadlite-dist/QuadLite.exe
+            ${{ runner.temp }}/quadlite-dist/BUILD.txt
+            ${{ runner.temp }}/quadlite-dist/PROBE-COM.txt
+          if-no-files-found: warn
+

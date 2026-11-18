@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Windows;
 using QuadLite.Core;
+using QuadLite.Fs;
 
 namespace QuadLite.Host
 {
@@ -29,8 +30,18 @@ namespace QuadLite.Host
                 return SelftestRunner.Run();
             }
 
-            if (cli.Mode == CliMode.Diagnose || cli.Mode == CliMode.Shot ||
-                cli.Mode == CliMode.ShellMenuHost)
+            // R6 阶段 0 + 1：--diagnose 接真实证据探针，不创建窗口、不碰用户文件。
+            // 阶段 0 只判「shell COM 能否实例化」；阶段 1 在系统 temp 的自建目录内
+            // 显式启用 ShellTransport 跑 copy/move/delete，逐项输出结构化结论。
+            // 结论由 stdout 如实输出，不预先写成「已验证」，也不冒充 M1 成立。
+            if (cli.Mode == CliMode.Diagnose)
+            {
+                Console.WriteLine("QuadLite: " + ShellComProbe.RunInstantiationProbe());
+                Console.WriteLine("QuadLite: " + ShellTransportProbe.Run());
+                return 0;
+            }
+
+            if (cli.Mode == CliMode.Shot || cli.Mode == CliMode.ShellMenuHost)
             {
                 Console.WriteLine("QuadLite: mode=" + cli.Mode.ToString() +
                                   " status=未实现 / 未验证（诊断装置尚未接入真实设备）");

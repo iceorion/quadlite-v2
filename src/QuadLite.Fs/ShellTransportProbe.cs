@@ -40,22 +40,27 @@ namespace QuadLite.Fs
                                        "quadlite-r6-" + Guid.NewGuid().ToString("N"));
             string srcDir = Path.Combine(root, "src");
             string dstDir = Path.Combine(root, "dst");
+            string movedDir = Path.Combine(root, "moved");
             string srcFile = Path.Combine(srcDir, "r6-copy.txt");
             string copiedFile = Path.Combine(dstDir, "r6-copy.txt");
+            string movedFile = Path.Combine(movedDir, "r6-copy.txt");
             List<string> lines = new List<string>();
 
             try
             {
                 Directory.CreateDirectory(srcDir);
                 Directory.CreateDirectory(dstDir);
+                Directory.CreateDirectory(movedDir);
                 File.WriteAllText(srcFile, "quadlite-r6-probe", System.Text.Encoding.UTF8);
 
                 PathKey srcKey;
                 PathKey dstKey;
                 PathKey copiedKey;
+                PathKey movedDirKey;
                 if (!PathKey.TryNormalize(srcFile, out srcKey) ||
                     !PathKey.TryNormalize(dstDir, out dstKey) ||
-                    !PathKey.TryNormalize(copiedFile, out copiedKey))
+                    !PathKey.TryNormalize(copiedFile, out copiedKey) ||
+                    !PathKey.TryNormalize(movedDir, out movedDirKey))
                 {
                     lines.Add("probe-transport: path-normalize-failed");
                     return string.Join(" | ", lines.ToArray());
@@ -66,10 +71,8 @@ namespace QuadLite.Fs
 
                 List<PathKey> one = new List<PathKey>();
                 one.Add(srcKey);
-                MenuTarget snapshot = new MenuTarget(one, srcKey, 0,
-                                                     DateTime.UtcNow.Ticks);
 
-                OpRecord copy = RunOne(transport, snapshot, OpKind.Copy, one, dstKey);
+                OpRecord copy = RunOne(transport, OpKind.Copy, one, dstKey);
                 bool copyExists = File.Exists(copiedFile);
                 lines.Add("copy: error=" + copy.Error + " callbacks=" + copy.CallbackCount +
                           " items=" + copy.Items.Count + " target-exists=" +
@@ -77,13 +80,17 @@ namespace QuadLite.Fs
 
                 if (copyExists)
                 {
+                    // IFileOperation::MoveItem 的目标必须是「文件夹」，不是文件路径。
+                    // 用独立的空 movedDir，避免与 srcDir 的同名原始文件冲突造成假 hr。
                     List<PathKey> moved = new List<PathKey>();
                     moved.Add(copiedKey);
-                    OpRecord move = RunOne(transport, snapshot, OpKind.Move, moved, srcKey);
-                    bool moveExists = File.Exists(Path.Combine(srcDir, "r6-copy.txt"));
+                    OpRecord move = RunOne(transport, OpKind.Move, moved, movedDirKey);
+                    bool moveExists = File.Exists(movedFile);
+                    bool copyGone = !File.Exists(copiedFile);
                     lines.Add("move: error=" + move.Error + " callbacks=" + move.CallbackCount +
                               " items=" + move.Items.Count + " target-exists=" +
-                              (moveExists ? "true" : "false"));
+                              (moveExists ? "true" : "false") + " source-gone=" +
+                              (copyGone ? "true" : "false"));
                 }
                 else
                 {
@@ -92,12 +99,12 @@ namespace QuadLite.Fs
 
                 List<PathKey> toDelete = new List<PathKey>();
                 PathKey deleteKey;
-                if (PathKey.TryNormalize(Path.Combine(srcDir, "r6-copy.txt"), out deleteKey))
+                if (PathKey.TryNormalize(srcFile, out deleteKey))
                     toDelete.Add(deleteKey);
-                if (File.Exists(Path.Combine(srcDir, "r6-copy.txt")))
+                if (File.Exists(srcFile))
                 {
-                    OpRecord del = RunOne(transport, snapshot, OpKind.Recycle, toDelete, null);
-                    bool gone = !File.Exists(Path.Combine(srcDir, "r6-copy.txt"));
+                    OpRecord del = RunOne(transport, OpKind.Recycle, toDelete, null);
+                    bool gone = !File.Exists(srcFile);
                     lines.Add("delete: error=" + del.Error + " callbacks=" + del.CallbackCount +
                               " items=" + del.Items.Count + " source-removed=" +
                               (gone ? "true" : "false"));
@@ -107,7 +114,7 @@ namespace QuadLite.Fs
                     lines.Add("delete: skipped (no source to recycle)");
                 }
 
-                lines.Insert(0, "probe-transport: enabled=true evidence=真机实测(运行态)");
+                lines.Insert(0, "probe-transport: enabled=true evidence=runtime-live");
                 return string.Join(" | ", lines.ToArray());
             }
             catch (Exception ex)
@@ -122,9 +129,17 @@ namespace QuadLite.Fs
             }
         }
 
-        private static OpRecord RunOne(ShellTransport transport, MenuTarget snapshot,
-                                       OpKind kind, IList<PathKey> sources, PathKey destination)
+        /// <summary>
+        /// 每个 OpKind 都必须用「以自身源集合为 Selection」的快照：OpPlanBuilder 要求
+        /// Sources == Target.Selection，否则 TryBuild 拒绝（表现为 0 回调的 AccessDenied）。
+        /// 早先三个操作共用一个 copy 快照，导致 move 源（copiedKey）与快照源不一致而被拒；
+        /// 这是探针构造缺陷，不是 ShellTransport / COM 的问题。
+        /// </summary>
+        private static OpRecord RunOne(ShellTransport transport, OpKind kind,
+                                       IList<PathKey> sources, PathKey destination)
         {
+            MenuTarget snapshot = new MenuTarget(sources, sources[0], 1,
+                                                 DateTime.UtcNow.Ticks);
             OpRequest request = new OpRequest(snapshot, kind, sources, destination,
                                               CollisionPolicy.Overwrite);
             Sink sink = new Sink();

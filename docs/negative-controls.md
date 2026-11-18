@@ -293,7 +293,7 @@ R6 不新增门卡、不新增 `run_tests.py` 负向组：诊断探针必须遵�
 | 规格 §8.1 不写实现批次 | 临时副本往 `design-v2.md` 塞 `\| R6 \|` 行 | `check-transport-specs` / `check-ui-specs`（规格一致性） |
 | 诊断步骤 record-only 不判通过 | 临时副本把 CI `real-exe-probe-com` 改成以 COM 结论 `exit 1` | CI 审阅（`PROBE-COM.txt` 仅记录，不作为通过判据） |
 
-本机 16 个 `check_*.py` 与 `run_tests.py`（162 组 / 145 条负向逐条变红）实测绿，**CI 实跑与真机结论待回填**：新增 `real-exe-probe-com` / `upload-artifact` 尚无 run 结论，`PROBE-COM.txt` 的 COM 实例化 HRESULT 与 copy / move / recycle 真实 hr 一律「未验证」（见 `ADR-v2-016` 与 `docs/run-ledger.md` R6 行）。`--diagnose` 是规格外诊断装置，不属 Normal 路径；阶段 1 只在系统 temp 自建目录内写入并清理，不冒充 H3「`data\` 之外零写入已取证」；**M1 / M2 / M3 仍不成立**。
+本机 16 个 `check_*.py` 与 `run_tests.py`（162 组 / 145 条负向逐条变红）实测绿。**本机真机结论已回填**：编译通过、`--diagnose` 阶段 0 COM 实例化成功、阶段 1 copy / move / recycle 三项 `error=None callbacks=1 items=1` 全链路完成（中途 0 回调 AccessDenied 系探针共用快照缺陷，非产品问题，已修正）；**CI 实跑仍待回填**：`real-exe-probe-com` / `upload-artifact` 尚无 run 结论，Session 0 的 `PROBE-COM.txt` 与本机交互桌面结论分别登记、不互相替代（见 `ADR-v2-016` 与 `docs/run-ledger.md` R6 行）。`--diagnose` 是规格外诊断装置，不属 Normal 路径；阶段 1 只在系统 temp 自建目录内写入并清理，不冒充 H3「`data\` 之外零写入已取证」；**M1 / M2 / M3 仍不成立**。
 
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 

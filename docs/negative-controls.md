@@ -277,7 +277,7 @@ R5 的 23 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测
 真实系统图像工厂、HBITMAP 逐像素比对、WIC 解码介质、thumbcache 三段取证与图标呈现由 H1–H6 真机取证，本机与 CI 均不实例化 COM、不解码、不写缓存。
 R5 只把「可编译、可静态判定的取图与呈现链路」接入证据闭环：SDK 逐字对应声明 + 独立 STA + 8 秒看门狗 + 不可变快照 + `generation` 丢弃 + `try-finally` 释放，
 但宿主默认关闭（规格 §5.11 默认路径的明确偏差，见 `ADR-v2-015` D6），WIC 自解码改走 WPF 内置系统包装而不是手写第三套半的 COM vtable（同 ADR D2），**M1 / M2 / M3 仍不成立**。
-**CI 结论待回填**到 `docs/run-ledger.md` R5 行与 `ADR-v2-015.md`；本机不执行 C# 编译器。
+**CI 结论已回填**到 `docs/run-ledger.md` R5 行与 `ADR-v2-015.md`：run `44318088019`（head `61a9ef4`）`gates` job `success`，二十二个门卡 / 编译步骤逐项 `success`（含 `check-icon-thumb-specs` / `real-exe-build` / `real-exe-selftest`）；CI 只编译、不实例化 COM、不解码、不写 thumbcache，图标呈现运行期仍「未验证」；本机不执行 C# 编译器。
 
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
@@ -359,7 +359,7 @@ R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-s
 
 R4 起 CI 再增加 `check-menu-host-specs` 一步（共二十一个门卡 / 编译步骤）：静态核对 SDK 逐字对应声明、标准四步、消息转发、目标快照、释放、默认关闭与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第二套 COM 声明的 Fs 层与 Host 右键接线一并编进单 exe（四层 105 个 .cs），`real-exe-selftest` 增 8 组 R4 契约断言；`run_tests.py` 扩到 138 组 / 122 条负向对照（19 条 R4 逐条实测变红）。CI 仍只编译、不实例化 COM、不弹菜单、不开窗口，真实 shell 扩展与菜单运行期一律「未验证」；宿主默认关闭是 §5.2 默认路径的明确偏差（见 `ADR-v2-014` D5）。**首次实跑已通过**：run `43874542767`（head `fd11116`，含 R4 功能提交 `cfed91a` 与账本回填提交 `fd11116`），`gates` job 结论 `success`，二十一个门卡 / 编译步骤逐项 `success`，其中 `check-menu-host-specs` `success`、`csharp-fs-compile` `success`、`real-exe-build` `success` ⇒ 四层 105 个 .cs 一次编成单 exe 且 `BUILD.txt` 七字段齐、`real-exe-selftest` `success` ⇒ 产品 `--selftest` 报告 ≥100 行、`verdict: GREEN`、退出码 0（含 8 组 R4 断言）；按 jobs API 的 step `conclusion` 记录，日志端点匿名 403 未读原文。本机不执行 C# 编译器，结论只记 CI 远端实测。
 
-R5 起 CI 再增加 `check-icon-thumb-specs` 一步（共二十二个门卡 / 编译步骤）：静态核对第三套 COM 的 SDK GUID / 一槽 vtable / `SIIGBF` 十个值、四级通道与 WIC 白名单、EXIF 八值、单 worker 与 `generation` 丢弃、LRU 双闸与负缓存、8 秒看门狗与唯一写入例外、独立 STA / try-finally / 默认关闭、Host 呈现接线与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第三套 COM 声明的 Fs 层与 Host 图标接线一并编进单 exe（四层 107 个 .cs），`real-exe-selftest` 增 8 组 R5 契约断言；`run_tests.py` 扩到 162 组 / 145 条负向对照（23 条 R5 逐条实测变红）。CI 仍只编译、不实例化 COM、不解码、不写 thumbcache、不开窗口，真实系统图像工厂与图标呈现运行期一律「未验证」；宿主默认关闭是 §5.11 默认路径的明确偏差（见 `ADR-v2-015` D6）。**CI 结论待回填**，本机不执行 C# 编译器。
+R5 起 CI 再增加 `check-icon-thumb-specs` 一步（共二十二个门卡 / 编译步骤）：静态核对第三套 COM 的 SDK GUID / 一槽 vtable / `SIIGBF` 十个值、四级通道与 WIC 白名单、EXIF 八值、单 worker 与 `generation` 丢弃、LRU 双闸与负缓存、8 秒看门狗与唯一写入例外、独立 STA / try-finally / 默认关闭、Host 呈现接线与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第三套 COM 声明的 Fs 层与 Host 图标接线一并编进单 exe（四层 107 个 .cs），`real-exe-selftest` 增 8 组 R5 契约断言；`run_tests.py` 扩到 162 组 / 145 条负向对照（23 条 R5 逐条实测变红）。CI 仍只编译、不实例化 COM、不解码、不写 thumbcache、不开窗口，真实系统图像工厂与图标呈现运行期一律「未验证」；宿主默认关闭是 §5.11 默认路径的明确偏差（见 `ADR-v2-015` D6）。**首次实跑已通过**：run `44318088019`（head `61a9ef4`，含 R5 功能提交 `0400ec5` 与账本回填提交 `61a9ef4`），`gates` job `success`，二十二个门卡 / 编译步骤逐项 `success`，其中 `check-icon-thumb-specs` `success`、`csharp-fs-compile` `success`、`real-exe-build` `success` ⇒ 四层 107 个 .cs 一次编成单 exe 且 `BUILD.txt` 七字段齐、`real-exe-selftest` `success` ⇒ 产品 `--selftest` 报告 ≥100 行、`verdict: GREEN`、退出码 0（含 8 组 R5 断言）；按 jobs API 的 step `conclusion` 记录，日志端点匿名 403 未读原文。本机不执行 C# 编译器，结论只记 CI 远端实测。
 
 ## 写入例外清单
 

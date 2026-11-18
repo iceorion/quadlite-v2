@@ -250,6 +250,19 @@ R5 按 `ADR-015` D1 只做「图标 / 缩略图取图与呈现的真实代码路
 
 **本机实测**：16 个 `check_*.py` 门卡与 `run_tests.py`（共 17 条本地复核命令）全绿（162 组 / 0 失败、145 条负向逐条变红）、`design-v2.md` diff 为空、`build.ps1` 保留 UTF-8 BOM、四层 107 个 `.cs`。本机不执行 C# 编译器。**CI 首次实跑已通过**：run `44318088019`（push head `61a9ef4`，含功能提交 `0400ec5` 与账本回填提交 `61a9ef4`），`gates` job `success`，二十二个门卡 / 编译步骤逐项 `success`，其中 `check-icon-thumb-specs` / `csharp-fs-compile` / `real-exe-build` / `real-exe-selftest` 全绿 ⇒ 第三套托管 COM 声明与图标宿主编译通过、四层 107 个 .cs 一次编成单 exe 且 `BUILD.txt` 七字段齐、产品 `--selftest` 报告 ≥100 行、`verdict: GREEN`、退出码 0（含 8 组 R5 契约断言）；按 jobs API 的 step `conclusion` 记录，日志端点匿名 403 未读原文。CI 仍不开窗口、不枚举目录、不实例化 COM、不解码、不写 thumbcache。
 
+## R6 真机证据批次：阶段 0 COM 探针 + 阶段 1 transport 试点（规格外实现批次）
+
+R6 按 `ADR-v2-016` 只做一件事：在不改规格（`design-v2.md` v1.2 一字未改）、不动三宿主默认关闭纪律、不破坏任何既有门卡的前提下，接通一条**受控真机取证通道**。背景是 B0–B8 + R1–R5 的「接线完成」只等价于「代码存在且能编译」——CI 从未实例化 COM、执行搬运，三个宿主都默认关闭且无启用入口，运行期没有任何证据。
+
+| 项 | 交付 |
+|---|---|
+| 阶段 0 COM 探针 | `src/QuadLite.Fs/ShellComProbe.cs`：独立 STA 内 `CoInitializeEx` → `Activator.CreateInstance(Type.GetTypeFromCLSID(CLSID_FileOperation))` → 释放 → `CoUninitialize`，输出 `coinit-hr / instantiated / release-failed / detail / clsid`；不碰文件、不调 `PerformOperations`、不开窗口，CLSID 复用唯一白名单 `ShellIds`，无新增 COM 声明 |
+| 阶段 1 transport 试点 | `src/QuadLite.Fs/ShellTransportProbe.cs`：系统 temp 下唯一前缀自建目录内写测试文件，显式 `Enable()` 全新 `ShellTransport`，跑 Copy / Move / Recycle 三类 `OpKind`，逐项输出结构化结论，结束即删目录；不碰用户文件、不写日志原文 |
+| 诊断入口 | 复用已合法的 `CliMode.Diagnose`（`--diagnose`），不新增 CLI 参数、不动 `CliContractRules.ParameterCount == 14`；`Program.cs` 只在诊断分支接探针，其余诊断模式仍标「未实现 / 未验证」 |
+| CI 与产物 | `ci.yml` 新增 `real-exe-probe-com`（record-only：`--diagnose` 探针 stdout 落 `PROBE-COM.txt`，无论 COM 结论如何都 exit 0——Session 0 里实例化失败本身即证据）与 `upload-artifact`（上传 exe + BUILD.txt + PROBE-COM.txt 供本机交互桌面做真机验证） |
+
+**偏差与证据等级**：`--diagnose` 在 §6.4 中语义为通用诊断，本批赋予其 COM 实例化与 transport 试点的具体行为，属规格外诊断扩展，登记在 `ADR-v2-016` D1；探针不属 Normal 路径，三宿主仍默认关闭、Host 层无启用入口。本机 16 个 `check_*.py` 门卡与 `run_tests.py`（162 组 / 0 失败、145 条负向逐条变红）全绿、`design-v2.md` diff 为空、四层 109 个 `.cs`；本机不执行 C# 编译器。**CI 实跑待回填**：`real-exe-probe-com` / `upload-artifact` 尚无 run 结论，COM 实例化 HRESULT 与 copy / move / recycle 真实 hr 一律标「未验证」。H3 零写入三段取证未执行（阶段 1 只在 temp 自建目录写入并清理，不冒充 `data\` 之外零写入已取证）。`ReleaseState.IsPublishable() == false`，**M1 / M2 / M3 均不成立**，完整登记见 `docs/adr/ADR-v2-016.md` 与 `docs/run-ledger.md` 的 R6 行。
+
 ## 首版设计目标（摘要）
 
 - 1/2/3/4 窗格布局，每窗格独立标签、历史与视图偏好；便携配置只认程序同级 `data\`。
@@ -290,6 +303,7 @@ R5 按 `ADR-015` D1 只做「图标 / 缩略图取图与呈现的真实代码路
 | `docs/adr/ADR-v2-013.md` | R3 设计决策记录（范围收敛与 R4/R5 顺序、四档落位与目录枚举、搬运接线但默认关闭、运行期未验证、M1–M3 仍不成立） |
 | `docs/adr/ADR-v2-014.md` | R4 设计决策记录（SDK 逐字对应声明、标准四步与消息转发、verb 口径单点、默认关闭即 §5.2 偏差、运行期未验证、M1–M3 仍不成立） |
 | `docs/adr/ADR-v2-015.md` | R5 设计决策记录（第三套 COM 收敛为 `IShellItemImageFactory` 一槽、WIC 改走 WPF 内置系统包装、四级通道 / LRU / 看门狗 / 唯一写入例外、默认关闭即 §5.11 偏差、运行期未验证、M1–M3 仍不成立） |
+| `docs/adr/ADR-v2-016.md` | R6 设计决策记录（复用 `--diagnose` 不新增参数、阶段 0 COM 实例化探针、阶段 1 transport 真机试点、CI record-only 探针与 artifact 上传、诊断装置不属 Normal 路径、运行期证据待 CI / 真机回填、M1–M3 仍不成立） |
 | `docs/negative-controls.md` | 不变量 → 负向对照用例 → 应红门卡；写入例外清单；未验证项 |
 | `docs/run-ledger.md` | 每批一行，记功能提交 `head_sha` |
 | `LICENSE` | MIT 许可证 |

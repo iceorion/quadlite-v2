@@ -111,8 +111,9 @@ foreach ($layer in @('QuadLite.Core', 'QuadLite.Fs', 'QuadLite.App', 'QuadLite.H
     $pattern = Join-Path $repo ('src\' + $layer + '\*.cs')
     $sources += @(Get-ChildItem -Path $pattern -ErrorAction Stop | ForEach-Object { $_.FullName })
 }
-# 当前四层合计 109 个 .cs（Core 78 + Fs 11 + App 12 + Host 8；R5 新增 Fs 1 + Host 1，
-# R6 阶段 0/1 新增 Fs 2：ShellComProbe.cs / ShellTransportProbe.cs）。
+# R5 时四层合计 107 个 .cs（Core 78 + Fs 9 + App 12 + Host 8；R5 新增 Fs 1 + Host 1）。
+# R6 阶段 0/1 在 Fs 层新增 2 个诊断文件（ShellComProbe.cs / ShellTransportProbe.cs），
+# 当前合计 109 个 .cs；glob 自动收纳，下方只防源码集意外为空 / 漏收某层。
 # 这里只防「源码集意外为空 / 漏收某层」，不把具体文件数写成硬契约。
 if ($sources.Count -lt 90) {
     Write-Output "BUILD: unexpected source count $($sources.Count)"

@@ -279,6 +279,22 @@ R5 只把「可编译、可静态判定的取图与呈现链路」接入证据�
 但宿主默认关闭（规格 §5.11 默认路径的明确偏差，见 `ADR-v2-015` D6），WIC 自解码改走 WPF 内置系统包装而不是手写第三套半的 COM vtable（同 ADR D2），**M1 / M2 / M3 仍不成立**。
 **CI 结论已回填**到 `docs/run-ledger.md` R5 行与 `ADR-v2-015.md`：run `44318088019`（head `61a9ef4`）`gates` job `success`，二十二个门卡 / 编译步骤逐项 `success`（含 `check-icon-thumb-specs` / `real-exe-build` / `real-exe-selftest`）；CI 只编译、不实例化 COM、不解码、不写 thumbcache，图标呈现运行期仍「未验证」；本机不执行 C# 编译器。
 
+## R6 登记（阶段 0 COM 探针 + 阶段 1 transport 真机试点）
+
+R6 不新增门卡、不新增 `run_tests.py` 负向组：诊断探针必须遵守的分层 / 声明 / 默认关闭 / C# 5 不变量，全部由既有门卡守护，改动以下任一项都会触红：
+
+| 不变量 | 负向对照用例（既有门卡已覆盖） | 应红门卡 |
+|---|---|---|
+| COM 声明只在唯一白名单 | 临时副本在 `ShellComProbe.cs` / `ShellTransportProbe.cs` 注入 `[ComImport]` / `[Guid(` | `check-boundaries` B-04、`check-fs-specs`、`check-transport-specs`（`com_policy` 单点口径） |
+| 禁止函数指针式 vtable | 临时副本注入 `Marshal.ReadIntPtr` / `unsafe` | `check-fs-specs`、`check-transport-specs`（禁用模式） |
+| Host 零 `using System.IO` / 零 COM 声明 / C# 5 | 临时副本在 Host 层注入 `using System.IO;` 或 C# 6+ 语法 | `check-ui-specs`、`check-realization-specs`（分层纪律 / C# 5） |
+| 三宿主仍默认关闭、Host 不自行启用 | 临时副本在 Normal 路径注入 `.Enable()` 或改掉 `if (!enabled)` | `check-transport-specs` / `check-menu-host-specs` / `check-icon-thumb-specs` |
+| CLI 契约表参数数固定 | 临时副本往 `CliContractRules` 塞新参数 | `check-core-specs`、`check-selftest-specs`、`run_tests`（参数数不变量） |
+| 规格 §8.1 不写实现批次 | 临时副本往 `design-v2.md` 塞 `\| R6 \|` 行 | `check-transport-specs` / `check-ui-specs`（规格一致性） |
+| 诊断步骤 record-only 不判通过 | 临时副本把 CI `real-exe-probe-com` 改成以 COM 结论 `exit 1` | CI 审阅（`PROBE-COM.txt` 仅记录，不作为通过判据） |
+
+本机 16 个 `check_*.py` 与 `run_tests.py`（162 组 / 145 条负向逐条变红）实测绿，**CI 实跑与真机结论待回填**：新增 `real-exe-probe-com` / `upload-artifact` 尚无 run 结论，`PROBE-COM.txt` 的 COM 实例化 HRESULT 与 copy / move / recycle 真实 hr 一律「未验证」（见 `ADR-v2-016` 与 `docs/run-ledger.md` R6 行）。`--diagnose` 是规格外诊断装置，不属 Normal 路径；阶段 1 只在系统 temp 自建目录内写入并清理，不冒充 H3「`data\` 之外零写入已取证」；**M1 / M2 / M3 仍不成立**。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |

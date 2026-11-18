@@ -11,8 +11,9 @@ B6 静态契约门卡：图标 / 缩略图 / 缓存的零 I/O 规则层、L4 状
 WIC 白名单与视频容器数 / 唯一写入例外 / 分层边界 / 规格版本一致 / C# 5 语法」
 这些静态事实。
 
-真实 WIC 解码、IShellItemImageFactory 调用、后台 worker、LRU 介质与三段取证
-均未接入，一律标「未实现 / 未验证」（见 docs/adr/ADR-v2-008.md）。
+R5 起 IShellItemImageFactory 调用、后台 worker 与列表项图标位已接线，
+但宿主默认关闭；真实 WIC 解码介质、LRU 介质、三段取证与图标呈现运行期
+一律标「未验证」（见 docs/adr/ADR-v2-008.md 与 docs/adr/ADR-v2-015.md）。
 """
 import argparse
 import re
@@ -295,8 +296,9 @@ def main():
     else:
         ok("C# 5 语法子集（%d 个 .cs）" % len(cs_files))
 
-    print("  N/A   真实 WIC 解码 / 系统图像工厂 / 后台 worker / LRU 介质 / "
-          "三段取证 / 图标与缩略图渲染：未实现 / 未验证")
+    print("  N/A   R5 起系统图像工厂取图 / WIC 系统托管包装 / 后台 worker / "
+          "列表项图标位已接线但宿主默认关闭；真实 WIC 解码介质 / LRU 介质 / "
+          "三段取证 / 图标呈现运行期：未验证")
     if errors:
         for e in errors:
             print("  RED   " + e)

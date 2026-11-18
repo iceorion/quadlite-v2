@@ -259,6 +259,45 @@ namespace QuadLite.Host
                       !QuadLite.Fs.MenuHostContractRules.IsRuntimeVerified() &&
                       !new QuadLite.Fs.NativeMenuHost().Enabled &&
                       !new MenuCommands().Enabled);
+
+            // R5：图标 / 缩略图取图链路的可判定契约。全部纯内存：不创建窗口、
+            // 不实例化 COM、不解码文件、不写 thumbcache。
+            probe.Add("r5-image-factory-vtable",
+                      QuadLite.Fs.IconThumbContractRules.DeclaredImageFactoryMethods() == 1 &&
+                      IconThumbCommands.ContractIsHonest());
+
+            probe.Add("r5-four-icon-channels",
+                      QuadLite.Fs.IconThumbContractRules.FourIconChannels() &&
+                      QuadLite.Fs.IconThumbContractRules.JumboFallsBackTo48() &&
+                      QuadLite.Fs.IconThumbContractRules.ExeTwoStageAndDriveRealPath());
+
+            probe.Add("r5-wic-whitelist-and-exif",
+                      QuadLite.Fs.IconThumbContractRules.WicWhitelistIntact() &&
+                      QuadLite.Fs.IconThumbContractRules.ExifEightValues());
+
+            probe.Add("r5-single-worker-and-late-discard",
+                      QuadLite.Fs.IconThumbContractRules.SingleWorkerVisibleFirst() &&
+                      QuadLite.Fs.IconThumbContractRules.LateResultDiscarded());
+
+            probe.Add("r5-lru-and-negative-cache",
+                      QuadLite.Fs.IconThumbContractRules.LruBothGatesAndIsolation() &&
+                      QuadLite.Fs.IconThumbContractRules.NegativeCacheNoRetry());
+
+            probe.Add("r5-video-and-write-exception",
+                      QuadLite.Fs.IconThumbContractRules.VideoFactoryAndWatchdog() &&
+                      QuadLite.Fs.IconThumbContractRules.SoleWriteException() &&
+                      IconThumbCommands.VideoCacheWriteAllowed(true) &&
+                      !IconThumbCommands.VideoCacheWriteAllowed(false));
+
+            probe.Add("r5-toggle-no-reenum",
+                      QuadLite.Fs.IconThumbContractRules.ToggleKeepsRowSet() &&
+                      ThumbCommands.ShouldApplyResult(6, 6, false) &&
+                      !ThumbCommands.ShouldApplyResult(6, 6, true));
+
+            probe.Add("r5-runtime-unverified",
+                      !QuadLite.Fs.IconThumbContractRules.IsRuntimeVerified() &&
+                      !new QuadLite.Fs.IconThumbHost().Enabled &&
+                      !new IconThumbCommands().Enabled);
         }
     }
 }

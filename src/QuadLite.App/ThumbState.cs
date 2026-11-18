@@ -6,7 +6,8 @@ namespace QuadLite.App
     /// <summary>
     /// B6 图标 / 缩略图状态内核（L4，零 I/O）：只读 Core 规则结果装配状态。
     /// 不含窗口、XAML、列表控件、WIC / Shell 绑定与任何事件绑定；
-    /// 真实图标与缩略图渲染由后续批次在注入端口后接入，见 docs/adr/ADR-v2-008.md。
+    /// R5 起 Host 已接入取图与呈现骨架，但宿主默认关闭、运行期未验证；
+    /// 本层仍只读 Core 结果，是零 I/O 状态内核，见 docs/adr/ADR-v2-008.md / ADR-v2-015.md。
     /// </summary>
     public sealed class ThumbState
     {

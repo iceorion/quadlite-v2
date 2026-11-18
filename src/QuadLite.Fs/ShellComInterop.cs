@@ -43,6 +43,11 @@ namespace QuadLite.Fs
         public const int ContextMenu2Methods = 4;
         public const int ContextMenu3Methods = 5;
         public const int ShellFolderMethods = 10;
+
+        // R5：um/ShObjIdl_core.h 8693 行 MIDL_INTERFACE 权威值；
+        // IUnknown 之后只有 GetImage 一个槽位（同头文件 8697–8700 行）。
+        public const string ImageFactoryIid = "bcc18b79-ba16-442f-80c4-8a59c30c463b";
+        public const int ImageFactoryMethods = 1;
     }
 
     /// <summary>SDK 权威 flags；NoUi 阻止系统模态进度框 / 冲突框抽走消息泵。</summary>
@@ -427,5 +432,58 @@ namespace QuadLite.Fs
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool SetForegroundWindow(IntPtr hWnd);
+    }
+
+    // ============ R5：图标 / 缩略图系统图像工厂 COM 声明（唯一白名单） ============
+    // Windows SDK 10.0.19041.0 um/ShObjIdl_core.h：
+    //   8693 行 MIDL_INTERFACE("bcc18b79-ba16-442f-80c4-8a59c30c463b") IShellItemImageFactory
+    //   8697–8700 行 virtual HRESULT GetImage(SIZE size, SIIGBF flags, HBITMAP *phbm) = 0;
+    //   8663–8675 行 enum _SIIGBF 十个值逐字抄录，不自行编号。
+    // IUnknown 之后只有 1 个槽位；不做函数指针运算、不改写 vtable、不使用非安全代码块。
+    // §5.2「成熟绑定」偏差继续沿用 ADR-v2-012 的登记；运行期一律标「未验证」。
+
+    /// <summary>SDK enum _SIIGBF（um/ShObjIdl_core.h 8663–8675 行）。</summary>
+    internal static class ImageFactoryFlags
+    {
+        public const uint ResizeToFit = 0x0000;
+        public const uint BiggerSizeOk = 0x0001;
+        public const uint MemoryOnly = 0x0002;
+        public const uint IconOnly = 0x0004;
+        public const uint ThumbnailOnly = 0x0008;
+        public const uint InCacheOnly = 0x0010;
+        public const uint CropToSquare = 0x0020;
+        public const uint WideThumbnails = 0x0040;
+        public const uint IconBackground = 0x0080;
+        public const uint ScaleUp = 0x0100;
+    }
+
+    /// <summary>SIZE：SDK 的 LONG cx / cy，按值传入 GetImage。</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Size32
+    {
+        public int cx;
+        public int cy;
+    }
+
+    /// <summary>IShellItemImageFactory：IUnknown 之后 1 个槽位，顺序取自 SDK。</summary>
+    [ComImport, Guid(ShellIds.ImageFactoryIid), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    internal interface IShellItemImageFactory
+    {
+        [PreserveSig] int GetImage(Size32 size, uint flags, out IntPtr phbm);
+    }
+
+    /// <summary>系统图像工厂需要的 Win32 入口，全部集中在本白名单文件。</summary>
+    internal static class ImageFactoryNative
+    {
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode,
+            EntryPoint = "SHCreateItemFromParsingName")]
+        internal static extern int SHCreateItemForImage(
+            [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
+            IntPtr pbc, ref Guid riid,
+            [MarshalAs(UnmanagedType.Interface)] out IShellItemImageFactory ppv);
+
+        [DllImport("gdi32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool DeleteObject(IntPtr hObject);
     }
 }

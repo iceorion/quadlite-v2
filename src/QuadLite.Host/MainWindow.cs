@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using QuadLite.Core;
 using QuadLite.Fs;
 
@@ -13,11 +14,13 @@ namespace QuadLite.Host
     /// 枚举真实目录，工具栏把复制 / 移动 / 删除接到 OperationCoordinator 与 R2 的
     /// ShellTransport（默认关闭，未启用时明确写「未执行 / 未验证」）。
     ///
-    /// 这里仍是「可编译、可静态判定的浏览、搬运与菜单骨架」，不是 MVP：
+    /// 这里仍是「可编译、可静态判定的浏览、搬运、菜单与图标骨架」，不是 MVP：
     /// R4 起右键把不可变快照交给 Fs 层的原生菜单宿主（默认关闭、运行期未验证），
-    /// 拖放、图标与缩略图渲染、七档视图与筛选、会话与书签持久化、run.lock 与
+    /// R5 起列表项模板带图标位、条目经 IconThumbCommands 取图（宿主默认关闭、
+    /// 真实呈现运行期未验证），开关切换不重枚举、迟到结果按 generation 丢弃；
+    /// 拖放、七档视图与筛选、会话与书签持久化、run.lock 与
     /// WM_COPYDATA 转发、--shot / --bench 诊断装置均未实现 / 未验证；
-    /// 真实键鼠交互与真实 shell 搬运运行期未取证。M1 MVP 不成立。
+    /// 真实键鼠交互、原生菜单与系统图像工厂运行期未取证。M1 MVP 不成立。
     /// </summary>
     public sealed class MainWindow : Window
     {
@@ -27,6 +30,7 @@ namespace QuadLite.Host
         private readonly TextBox address;
         private readonly BrowseCommands commands;
         private readonly MenuCommands menuCommands;
+        private readonly IconThumbCommands iconCommands;
         private LayoutMode layout = LayoutMode.Four;
         private int activePaneId = 0;
 
@@ -41,6 +45,7 @@ namespace QuadLite.Host
 
             commands = new BrowseCommands(null);
             menuCommands = new MenuCommands();
+            iconCommands = new IconThumbCommands();
             IDirSource source = new DirSource();
             PaneState[] states = PaneSet.Create();
             panes = new PaneView[LayoutMath.MaxPanes];
@@ -50,6 +55,7 @@ namespace QuadLite.Host
                 int id = i;
                 panes[i].SetStatusSink(delegate(string text) { OnPaneStatus(id, text); });
                 panes[i].SetMenuSink(OnContextMenu);
+                panes[i].SetIconProvider(OnIconRequest);
             }
 
             Grid root = new Grid();
@@ -244,6 +250,20 @@ namespace QuadLite.Host
             UpdateStatus(menuCommands.Show(selection, directory, paneId));
         }
 
+        /// <summary>
+        /// R5：列表项图标只经注入的 provider 取图，本窗口不读文件系统、不写 COM 声明、
+        /// 不自行启用宿主；默认关闭时 provider 返回 null，列表项保持文字占位。
+        /// </summary>
+        private BitmapSource OnIconRequest(PathKey key, int generation)
+        {
+            if (key == null) return null;
+            string leaf = key.GetLeafName();
+            int dot = leaf.LastIndexOf('.');
+            string extension = dot >= 0 ? leaf.Substring(dot) : "";
+            return iconCommands.Provide(key, extension, 0L, ViewMode.Details,
+                                        generation, new HostClock().NowTicks(), true);
+        }
+
         private void OnPaneStatus(int paneId, string text)
         {
             if (paneId != activePaneId) return;
@@ -256,10 +276,12 @@ namespace QuadLite.Host
                 " | transport=" + (commands.TransportEnabled ? "enabled" : "disabled by default / 未验证") +
                 " | native-menu=" + (menuCommands.Enabled ? "enabled" :
                                     "wired but disabled by default / 未验证") +
-                " | 未实现 / 未验证：拖放、图标缩略图渲染、" +
+                " | icon-thumb=" + (iconCommands.Enabled ? "enabled" :
+                                   "wired but disabled by default / 未验证") +
+                " | 未实现 / 未验证：拖放、" +
                 "七档视图与筛选、会话与书签、run.lock 与 WM_COPYDATA 转发、" +
                 "--shot / --bench 诊断装置、菜单崩溃哨兵与自绘兜底；" +
-                "真实交互、原生菜单 COM 与 shell 运行期未取证；" +
+                "真实交互、原生菜单 COM、系统图像工厂、HBITMAP 呈现与 shell 运行期未取证；" +
                 "发布线 H1-H6 与 C4 未取证，M1 MVP 不成立";
         }
     }

@@ -47,10 +47,12 @@ REQUIRED = [
     "tools/check_realization_specs.py",
     "tools/com_policy.py", "tools/check_transport_specs.py",
     "tools/check_ui_specs.py", "tools/check_menu_host_specs.py",
+    "tools/check_icon_thumb_specs.py",
     "src/QuadLite.Host/Program.cs", "src/QuadLite.Host/MainWindow.cs",
     "src/QuadLite.Host/SelftestRunner.cs",
     "src/QuadLite.Host/HostPolicies.cs", "src/QuadLite.Host/PaneView.cs",
     "src/QuadLite.Host/BrowseCommands.cs", "src/QuadLite.Host/MenuCommands.cs",
+    "src/QuadLite.Host/IconThumbCommands.cs",
     "src/QuadLite.Host/QuadLite.Host.csproj", "src/QuadLite.Host/app.manifest",
     "src/QuadLite.Core/PathKey.cs", "src/QuadLite.Core/OperationCoordinator.cs",
     "src/QuadLite.Core/LayoutMath.cs", "src/QuadLite.Core/FilterRules.cs",
@@ -66,6 +68,7 @@ REQUIRED = [
     "src/QuadLite.Fs/ShellFileOperator.cs",
     "src/QuadLite.Fs/ShellComInterop.cs", "src/QuadLite.Fs/ShellTransport.cs",
     "src/QuadLite.Fs/NativeMenuHost.cs",
+    "src/QuadLite.Fs/IconThumbHost.cs",
     "tests/QuadLite.Tests/Program.cs",
     ".github/workflows/ci.yml", "docs/adr/ADR-v2-001.md", "docs/adr/ADR-v2-002.md",
     "docs/adr/ADR-v2-004.md", "docs/adr/ADR-v2-005.md", "docs/adr/ADR-v2-006.md",
@@ -74,6 +77,7 @@ REQUIRED = [
     "docs/adr/ADR-v2-011.md", "docs/adr/ADR-v2-012.md",
     "docs/adr/ADR-v2-013.md",
     "docs/adr/ADR-v2-014.md",
+    "docs/adr/ADR-v2-015.md",
     "docs/negative-controls.md", "docs/run-ledger.md",
 ]
 
@@ -213,15 +217,16 @@ else:
 na("R1 起 CI 已编译真实 WPF 单文件 exe 并实跑产品 --selftest 与 BUILD.txt 七字段采集；"
    "R2 起 Fs 层接入 IFileOperation 托管 COM 声明与 transport（SDK 逐字对应，见 ADR-v2-012），"
    "运行期完全未验证；R3 起 Host 窗口按 LayoutMath.Slots 四档落位、用 IDirSource 枚举目录、"
-   "ListBox 呈现条目，并把搬运命令接到 R2 transport（默认关闭，见 ADR-v2-013），"
-   "CI 仍不开窗口、不枚举目录、不实例化 COM；拖放 / 系统原生菜单 COM 宿主 / "
-   "图标缩略图渲染 / 七档视图与筛选 / MSBuild 出包路径 / --shot --bench 诊断装置 / "
-   "单实例后两段仍未实现或未验证")
+   "ListBox 呈现条目；R4 起原生菜单 COM 宿主、R5 起图标 / 缩略图取图链路与列表项图标位"
+   "均已接线但默认关闭（见 ADR-v2-014 / ADR-v2-015），CI 仍不开窗口、不枚举目录、"
+   "不实例化 COM、不写 thumbcache；拖放 / 七档视图与筛选 / MSBuild 出包路径 / "
+   "--shot --bench 诊断装置 / 单实例后两段 / H1-H6 真实取证仍未实现或未验证；"
+   "M1 / M2 / M3 均不成立")
 na("H1–H6 真实取证（零写入三段取证、高 DPI 四档、兼容矩阵、WER 读法、性能采样、OV 签名）与 C4 带杀软 VM：人工 / 发布线项（未验证）；B8 只核对可静态判定的发布线契约，M3 不成立")
 na("同手感：人工验收项（未验证）")
 
 src_cs = [p for p in files if p.suffix == ".cs" and "src" in p.parts]
-print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3/B4/B5/B6/B7/B8 规则与状态内核 + R1 Host 真实宿主 3 个 .cs + R2 Fs 托管 COM 绑定与 transport 2 个 .cs + R3 Host 浏览 / 搬运 UI 3 个 .cs；真实 shell 运行期行为、NativeMenuHost、图标缩略图渲染、发布线真实取证、拖放与七档视图仍未接入 / 未验证）" % len(src_cs))
+print("  NOTE  src/ 产品源码 %d 个（B1 L0 + B2 编排 / 适配器 + B3/B4/B5/B6/B7/B8 规则与状态内核 + R1 Host 3 个 + R2 Fs 2 个 + R3 Host 3 个 + R4 Fs/Host 2 个 + R5 Fs/Host 2 个；R2 / R4 / R5 三套 COM 功能声明（共 8 段 vtable）集中在唯一白名单，宿主全部默认关闭，真实 shell / 菜单 / 图标呈现运行期与发布线取证仍未验证）" % len(src_cs))
 print("\n文件数=%d，总字节=%d" % (len(files), sum(p.stat().st_size for p in files)))
 if errors:
     print("verdict: RED (%d)" % len(errors))

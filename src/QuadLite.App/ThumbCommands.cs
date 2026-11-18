@@ -31,8 +31,9 @@ namespace QuadLite.App
 
     /// <summary>
     /// 缩略图命令派发（B6）：只读 Core 的白名单 / 视频容器 / 缓存 / 写入例外判据，
-    /// 装配结构化结果；不碰 WIC、不碰 Shell、不碰磁盘。真实调用点未接入，
-    /// 见 docs/adr/ADR-v2-008.md。
+    /// 装配结构化结果；不碰 WIC、不碰 Shell、不碰磁盘。R5 起 Host 的
+    /// `IconThumbCommands.Decide` 是真实调用点（宿主默认关闭、运行期未验证），
+    /// 本层仍保持零 I/O，见 `docs/adr/ADR-v2-008.md` 与 `docs/adr/ADR-v2-015.md`。
     /// </summary>
     public static class ThumbCommands
     {

@@ -4,9 +4,10 @@
     不产生 QuadLite.Core.dll 等旁路产物，天然满足「零 NuGet + 单 exe」。
     本机与 CI 的实际构建入口是仓库根的 build.ps1（csc /target:winexe /langversion:5）；
     本 csproj 供 IDE 打开与后续 MSBuild 出包使用，MSBuild 路径尚未实跑，标「未验证」。
-    规格 design-v2.md v1.2 未改动；R3 起窗口有四档落位、目录枚举与搬运命令接线，
+    规格 design-v2.md v1.2 未改动；    R3 起窗口有四档落位、目录枚举与搬运命令接线，
     R4 起右键把快照接进 Fs 层原生菜单宿主（默认关闭 / 运行期未验证）；
-    图标缩略图渲染与拖放仍未实现，真实交互运行期未验证。
+    R5 起列表项模板带图标位、IconThumbCommands 接系统图像工厂与 WIC 系统托管包装
+    （默认关闭 / 真实呈现运行期未验证）；拖放仍未实现。
   -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -25,6 +26,7 @@
     <Compile Include="PaneView.cs" />
     <Compile Include="BrowseCommands.cs" />
     <Compile Include="MenuCommands.cs" />
+    <Compile Include="IconThumbCommands.cs" />
     <Compile Include="..\QuadLite.Core\*.cs" />
     <Compile Include="..\QuadLite.Fs\*.cs" />
     <Compile Include="..\QuadLite.App\*.cs" />

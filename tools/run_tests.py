@@ -16,7 +16,8 @@ B1 起增加 check-core-specs 的四类负向对照；B2 起增加 check-fs-spec
 十类真实宿主静态契约负向对照；R2 起增加 check-transport-specs 正向 +
 十二类托管 COM 绑定静态契约负向对照；R3 起增加 check-ui-specs 正向 +
 十五类浏览 / 搬运 UI 静态契约负向对照；R4 起增加 check-menu-host-specs 正向 +
-十九类原生菜单 COM 宿主静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
+十九类原生菜单 COM 宿主静态契约负向对照；R5 起增加 check-icon-thumb-specs 正向 +
+二十二类图标缩略图取图链路静态契约负向对照。C# 算法 runner 在 CI 上编译实跑，
 runner exe 自 B7 起输出 ≥100 行门卡总表报告；真实产品 exe 由 CI 的
 real-exe-build / real-exe-selftest 两步编译并实跑 --selftest。
 """
@@ -882,6 +883,167 @@ def mutate_r4_host_io(dst):
                  p.read_text(encoding="utf-8"), encoding="utf-8")
 
 
+def negative_icon_thumb_specs(label, mutate):
+    """临时副本里破坏一条 R5 图标缩略图契约，check-icon-thumb-specs 必须变红。"""
+    with tempfile.TemporaryDirectory() as td:
+        dst = Path(td) / "repo"
+        shutil.copytree(ROOT, dst, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "*.exe", "dist"))
+        mutate(dst)
+        rc, out = run([str(dst / "tools" / "check_icon_thumb_specs.py"),
+                       "--root", str(dst)], cwd=dst)
+        ok = rc >= 1 and "verdict: RED" in out
+        record("negative-icon-thumb-" + label, ok, "rc=%d" % rc)
+        if not ok:
+            print("    " + out.strip().replace("\n", "\n    "))
+
+
+def _r5_decl(dst):
+    return dst / "src" / "QuadLite.Fs" / "ShellComInterop.cs"
+
+
+def _r5_impl(dst):
+    return dst / "src" / "QuadLite.Fs" / "IconThumbHost.cs"
+
+
+def _r5_ui(dst):
+    return dst / "src" / "QuadLite.Host" / "IconThumbCommands.cs"
+
+
+def _r5_pane(dst):
+    return dst / "src" / "QuadLite.Host" / "PaneView.cs"
+
+
+def _r5_replace(path, old, new):
+    text = path.read_text(encoding="utf-8")
+    broken = text.replace(old, new)
+    assert broken != text, "negative control did not apply: " + old
+    path.write_text(broken, encoding="utf-8")
+
+
+def mutate_r5_delete_fs_host(dst):
+    _r5_impl(dst).unlink()
+
+
+def mutate_r5_delete_ui_impl(dst):
+    _r5_ui(dst).unlink()
+
+
+def mutate_r5_drop_adr(dst):
+    (dst / "docs" / "adr" / "ADR-v2-015.md").unlink()
+
+
+def mutate_r5_guid_drift(dst):
+    _r5_replace(_r5_decl(dst),
+                "bcc18b79-ba16-442f-80c4-8a59c30c463b",
+                "bcc18b79-ba16-442f-80c4-8a59c30c463c")
+
+
+def mutate_r5_vtable_drift(dst):
+    _r5_replace(_r5_decl(dst), "int GetImage(", "int GetImageRenamed(")
+
+
+def mutate_r5_flags_drift(dst):
+    _r5_replace(_r5_decl(dst), "IconOnly = 0x0004", "IconOnly = 0x0044")
+
+
+def mutate_r5_verb_call_in_whitelist(dst):
+    p = _r5_decl(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: menu.GetCommandString(IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero, 0);\n",
+                 encoding="utf-8")
+
+
+def mutate_r5_raw_vtable(dst):
+    p = _r5_decl(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: Marshal.ReadIntPtr(IntPtr.Zero, 0);\n",
+                 encoding="utf-8")
+
+
+def mutate_r5_missing_getimage(dst):
+    _r5_replace(_r5_impl(dst), "factory.GetImage(", "factory.GetImageDisabled(")
+
+
+def mutate_r5_no_sta(dst):
+    _r5_replace(_r5_impl(dst),
+                "SetApartmentState(ApartmentState.STA)",
+                "SetApartmentState(ApartmentState.MTA)")
+
+
+def mutate_r5_enabled_by_default(dst):
+    _r5_replace(_r5_impl(dst), "if (!enabled)", "if (false)")
+
+
+def mutate_r5_ui_enables_host(dst):
+    p = _r5_ui(dst)
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n// negative control: host.Enable();\n", encoding="utf-8")
+
+
+def mutate_r5_provider_bypasses_toggle(dst):
+    _r5_replace(_r5_ui(dst), "if (!host.Enabled) return null;",
+                "if (false) return null;")
+
+
+def mutate_r5_no_release(dst):
+    _r5_replace(_r5_impl(dst), "Marshal.ReleaseComObject", "KeepComObject")
+
+
+def mutate_r5_no_watchdog(dst):
+    _r5_replace(_r5_impl(dst), "worker.Join(budgetMs)", "worker.Join()")
+
+
+def mutate_r5_no_snapshot(dst):
+    _r5_replace(_r5_ui(dst), "new IconThumbRequest(", "new IconThumbRequestDisabled(")
+
+
+def mutate_r5_no_item_template(dst):
+    _r5_replace(_r5_pane(dst), "list.ItemTemplate = template;",
+                "list.ItemTemplate = null;")
+
+
+def mutate_r5_no_late_discard(dst):
+    _r5_replace(_r5_pane(dst), "ThumbQueueRules.ShouldApplyResult(",
+                "ThumbQueueRules.ShouldApplyResultDisabled(")
+
+
+def mutate_r5_ci_step_removed(dst):
+    p = dst / ".github" / "workflows" / "ci.yml"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace("      - name: check-icon-thumb-specs\n"
+                          "        run: python tools/check_icon_thumb_specs.py\n", "")
+    assert broken != text, "negative control did not apply: ci step"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_r5_spec_drift(dst):
+    p = dst / "design-v2.md"
+    p.write_text(p.read_text(encoding="utf-8") +
+                 "\n| R5 | 图标缩略图渲染（擅自写进规格） | icon-* |\n",
+                 encoding="utf-8")
+
+
+def mutate_r5_missing_csproj_entry(dst):
+    p = dst / "src" / "QuadLite.Host" / "QuadLite.Host.csproj"
+    text = p.read_text(encoding="utf-8")
+    broken = text.replace('    <Compile Include="IconThumbCommands.cs" />\n', "")
+    assert broken != text, "negative control did not apply: csproj entry"
+    p.write_text(broken, encoding="utf-8")
+
+
+def mutate_r5_host_io(dst):
+    p = _r5_ui(dst)
+    p.write_text("using System.IO;  // negative control\n" +
+                 p.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def mutate_r5_no_selftest_group(dst):
+    p = dst / "src" / "QuadLite.Host" / "SelftestRunner.cs"
+    _r5_replace(p, 'probe.Add("r5-image-factory-vtable"',
+                'probe.Add("x5-image-factory-vtable"')
+
+
 def negative_ui_specs(label, mutate):
     """临时副本里破坏一条 R3 浏览 / 搬运 UI 契约，check-ui-specs 必须变红。"""
     with tempfile.TemporaryDirectory() as td:
@@ -1031,6 +1193,7 @@ def main():
     expect_green("check-transport-specs", script("check_transport_specs.py"))
     expect_green("check-ui-specs", script("check_ui_specs.py"))
     expect_green("check-menu-host-specs", script("check_menu_host_specs.py"))
+    expect_green("check-icon-thumb-specs", script("check_icon_thumb_specs.py"))
     expect_green("boundaries-ok-fixtures",
                  script("check_boundaries.py", "--path", str(TOOLS / "fixtures" / "boundaries" / "ok"),
                         "--root", str(ROOT)))
@@ -1162,6 +1325,29 @@ def main():
     negative_menu_host_specs("spec-batch-drift", mutate_r4_spec_drift)
     negative_menu_host_specs("missing-csproj-entry", mutate_r4_missing_csproj_entry)
     negative_menu_host_specs("host-io", mutate_r4_host_io)
+    negative_icon_thumb_specs("missing-fs-host", mutate_r5_delete_fs_host)
+    negative_icon_thumb_specs("missing-host-impl", mutate_r5_delete_ui_impl)
+    negative_icon_thumb_specs("missing-adr", mutate_r5_drop_adr)
+    negative_icon_thumb_specs("guid-drift", mutate_r5_guid_drift)
+    negative_icon_thumb_specs("vtable-order-drift", mutate_r5_vtable_drift)
+    negative_icon_thumb_specs("flags-drift", mutate_r5_flags_drift)
+    negative_icon_thumb_specs("verb-call-in-whitelist", mutate_r5_verb_call_in_whitelist)
+    negative_icon_thumb_specs("raw-vtable", mutate_r5_raw_vtable)
+    negative_icon_thumb_specs("missing-getimage", mutate_r5_missing_getimage)
+    negative_icon_thumb_specs("no-sta", mutate_r5_no_sta)
+    negative_icon_thumb_specs("enabled-by-default", mutate_r5_enabled_by_default)
+    negative_icon_thumb_specs("ui-enables-host", mutate_r5_ui_enables_host)
+    negative_icon_thumb_specs("provider-bypasses-toggle", mutate_r5_provider_bypasses_toggle)
+    negative_icon_thumb_specs("no-release", mutate_r5_no_release)
+    negative_icon_thumb_specs("no-watchdog", mutate_r5_no_watchdog)
+    negative_icon_thumb_specs("no-snapshot", mutate_r5_no_snapshot)
+    negative_icon_thumb_specs("no-item-template", mutate_r5_no_item_template)
+    negative_icon_thumb_specs("no-late-discard", mutate_r5_no_late_discard)
+    negative_icon_thumb_specs("ci-step-removed", mutate_r5_ci_step_removed)
+    negative_icon_thumb_specs("spec-batch-drift", mutate_r5_spec_drift)
+    negative_icon_thumb_specs("missing-csproj-entry", mutate_r5_missing_csproj_entry)
+    negative_icon_thumb_specs("host-io", mutate_r5_host_io)
+    negative_icon_thumb_specs("no-selftest-group", mutate_r5_no_selftest_group)
     negative_open_source()
     expect_green("open-source-scan", script("check_open_source.py"))
 

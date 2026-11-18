@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using QuadLite.Core;
 
 namespace QuadLite.Host
@@ -16,18 +19,38 @@ namespace QuadLite.Host
     /// 本类型不直接引用 System.IO：目录读取一律经 Fs 层 IDirSource 注入；枚举在后台
     /// worker 上跑，批次经 Dispatcher 回 UI 线程。R4 起右键把打开菜单那一刻的
     /// 选中集 / 目录快照交给 MenuCommands（宿主默认关闭、运行期未验证）；
-    /// 拖放、图标与缩略图渲染仍未实现 / 未验证，见 docs/adr/ADR-v2-013.md、
-    /// docs/adr/ADR-v2-014.md。
+    /// R5 起列表项模板带图标位，条目取图由注入的 provider 在后台 worker 上完成，
+    /// 回 UI 前按 generation 二次校验迟到结果（宿主默认关闭时只显示文字占位）。
+    /// 拖放、七档视图与筛选仍未实现 / 未验证，真实图标呈现运行期未取证；
+    /// 见 docs/adr/ADR-v2-013.md、docs/adr/ADR-v2-014.md、docs/adr/ADR-v2-015.md。
     /// </summary>
     public sealed class PaneView : Border
     {
-        private sealed class Entry
+        private sealed class Entry : INotifyPropertyChanged
         {
             private readonly PathKey key;
+            private BitmapSource icon;
 
             public Entry(PathKey key) { this.key = key; }
 
+            public event PropertyChangedEventHandler PropertyChanged;
+
             public PathKey Key { get { return key; } }
+            public string Name { get { return key.GetLeafName(); } }
+
+            public BitmapSource Icon
+            {
+                get { return icon; }
+                set
+                {
+                    icon = value;
+                    PropertyChangedEventHandler handler = PropertyChanged;
+                    if (handler != null)
+                    {
+                        handler(this, new PropertyChangedEventArgs("Icon"));
+                    }
+                }
+            }
 
             public override string ToString() { return key.GetLeafName(); }
         }
@@ -40,6 +63,7 @@ namespace QuadLite.Host
         private CancellationTokenSource cancel;
         private Action<string> onStatus;
         private Action<IList<PathKey>, PathKey, int> menuSink;
+        private Func<PathKey, int, BitmapSource> iconProvider;
 
         public PaneView(int paneId, PaneState state, IDirSource source)
         {
@@ -65,6 +89,7 @@ namespace QuadLite.Host
             list.Margin = new Thickness(2.0);
             list.MouseDoubleClick += OnDoubleClick;
             list.MouseRightButtonUp += OnRightClick;
+            BuildItemTemplate();
             dock.Children.Add(list);
 
             this.Child = dock;
@@ -79,6 +104,38 @@ namespace QuadLite.Host
 
         /// <summary>右键回调：由 MainWindow 把快照交给 R4 菜单宿主，本类不碰 COM。</summary>
         public void SetMenuSink(Action<IList<PathKey>, PathKey, int> sink) { menuSink = sink; }
+
+        /// <summary>
+        /// R5 图标 provider：由 MainWindow 注入 IconThumbCommands。未注入或宿主默认关闭时
+        /// 列表项只显示文字占位，本类不读文件系统、不写 COM 声明、不自行启用宿主。
+        /// </summary>
+        public void SetIconProvider(Func<PathKey, int, BitmapSource> provider)
+        {
+            iconProvider = provider;
+        }
+
+        /// <summary>列表项模板：图标位 + 名称，图标异步回填靠属性变更通知。</summary>
+        private void BuildItemTemplate()
+        {
+            DataTemplate template = new DataTemplate();
+            FrameworkElementFactory panel = new FrameworkElementFactory(typeof(StackPanel));
+            panel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+
+            FrameworkElementFactory image = new FrameworkElementFactory(typeof(Image));
+            image.SetBinding(Image.SourceProperty, new Binding("Icon"));
+            image.SetValue(Image.WidthProperty, 16.0);
+            image.SetValue(Image.HeightProperty, 16.0);
+            image.SetValue(Image.MarginProperty, new Thickness(2.0, 1.0, 4.0, 1.0));
+            panel.AppendChild(image);
+
+            FrameworkElementFactory text = new FrameworkElementFactory(typeof(TextBlock));
+            text.SetBinding(TextBlock.TextProperty, new Binding("Name"));
+            text.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            panel.AppendChild(text);
+
+            template.VisualTree = panel;
+            list.ItemTemplate = template;
+        }
 
         /// <summary>导航：generation 前进、旧枚举取消、迟到批次丢弃。</summary>
         public void Navigate(PathKey path)
@@ -176,11 +233,45 @@ namespace QuadLite.Host
                 if (EnumBatchRules.IsLateBatch(batch.Generation, state.Generation)) return;
                 for (int i = 0; i < batch.Items.Count; i++)
                 {
-                    if (batch.Items[i] != null) list.Items.Add(new Entry(batch.Items[i]));
+                    if (batch.Items[i] == null) continue;
+                    Entry entry = new Entry(batch.Items[i]);
+                    list.Items.Add(entry);
+                    QueueIcon(entry, batch.Generation);
                 }
                 if (batch.IsLast) state.SetLoadState(PaneLoadState.Ready);
                 Report();
             }));
+        }
+
+        /// <summary>
+        /// R5：图标取图在后台 worker 上做，不占 UI 线程；回 UI 时用 ThumbQueueRules
+        /// 按 generation 二次校验，迟到结果直接丢弃，不覆盖较新的用户状态。
+        /// provider 为空或宿主默认关闭时不产生任何线程，列表项保持文字占位。
+        /// </summary>
+        private void QueueIcon(Entry entry, int generation)
+        {
+            Func<PathKey, int, BitmapSource> provider = iconProvider;
+            if (provider == null) return;
+            PathKey key = entry.Key;
+            Thread worker = new Thread(delegate()
+            {
+                BitmapSource icon = null;
+                try { icon = provider(key, generation); }
+                catch (Exception) { icon = null; }
+                if (icon == null) return;
+                try { if (icon.CanFreeze) icon.Freeze(); }
+                catch (Exception) { return; }
+                Dispatcher.BeginInvoke(new Action(delegate()
+                {
+                    if (!ThumbQueueRules.ShouldApplyResult(generation, state.Generation, false))
+                    {
+                        return;
+                    }
+                    entry.Icon = icon;
+                }));
+            });
+            worker.IsBackground = true;
+            worker.Start();
         }
 
         private void OnDoubleClick(object sender, MouseButtonEventArgs e)

@@ -167,7 +167,7 @@ def main():
     if order_bad:
         bad("COM vtable 顺序被破坏：%s" % "; ".join(order_bad))
     else:
-        ok("%d 段 vtable 方法顺序与 SDK 一致（R2 三段 + R4 四段）" %
+        ok("%d 段 vtable 方法顺序与 SDK 一致（R2 三段 + R4 四段 + R5 一段）" %
            len(com_policy.EXPECTED_METHODS))
 
     # 5. flags 常量

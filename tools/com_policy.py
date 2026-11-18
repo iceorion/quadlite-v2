@@ -13,6 +13,11 @@ R4 起第二套 COM 声明（IContextMenu / IContextMenu2/3 / IShellFolder）同
 该方法名的**声明**，但不允许任何调用形态（`.MethodName(`）；其余层连声明也禁止。
 口径由 verb_hit 单点定义，check-boundaries / check-fs / check-menu / check-transport
 / check-selftest / check-release / open-source 一律复用，不各自另立一套。
+
+R5 起第三套 COM 声明（IShellItemImageFactory，IUnknown 之后仅 GetImage 一槽）
+并入同一白名单；GUID 与 vtable 顺序同样由 EXPECTED_IDS / EXPECTED_METHODS 单点定义，
+check-transport-specs 遍历全表自动覆盖，不需要为新接口另立一套口径。
+图片缩略图的 WIC 自解码改用 WPF 内置托管包装，不新增手写 COM 声明（ADR-015 D2）。
 """
 import re
 
@@ -42,6 +47,8 @@ EXPECTED_IDS = {
     "ContextMenu2Iid": "000214f4-0000-0000-c000-000000000046",
     "ContextMenu3Iid": "bcfce0a0-ec17-11d0-8d10-00a0c90f2719",
     "ShellFolderIid": "000214e6-0000-0000-c000-000000000046",
+    # R5：um/ShObjIdl_core.h 8693 行 MIDL_INTERFACE 权威值
+    "ImageFactoryIid": "bcc18b79-ba16-442f-80c4-8a59c30c463b",
 }
 
 # vtable 方法顺序，逐字取自同一份 SDK 头文件
@@ -79,6 +86,8 @@ EXPECTED_METHODS = {
         "CompareIDs", "CreateViewObject", "GetAttributesOf", "GetUIObjectOf",
         "GetDisplayNameOf", "SetNameOf",
     ],
+    # R5：um/ShObjIdl_core.h 8697–8700 行，IUnknown 之后只有 GetImage 一槽。
+    "IShellItemImageFactory": ["GetImage"],
 }
 
 

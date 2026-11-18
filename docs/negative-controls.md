@@ -246,6 +246,39 @@ R4 只把「可编译、可静态判定的原生菜单链路」接入证据闭�
 但宿主默认关闭（规格 §5.2 默认路径的明确偏差，见 `ADR-v2-014` D5），**M1 / M2 / M3 仍不成立**（见 `docs/adr/ADR-v2-014.md` 偏差登记）。
 CI 结论已回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`：run `43874542767`（head `fd11116`）`gates` job `success`，二十一个门卡 / 编译步骤逐项 `success`（含 `check-menu-host-specs` / `real-exe-build` / `real-exe-selftest`）；CI 只编译、不实例化 COM，菜单运行期仍「未验证」。
 
+## R5 登记（图标 / 缩略图取图链路与呈现接线）
+
+| 不变量 | 负向对照用例 | 应红门卡 |
+|---|---|---|
+| Fs 宿主与 Host 呈现齐备 | 临时副本删 `IconThumbHost.cs` / `IconThumbCommands.cs` | `check-icon-thumb-specs`（交付物 / Host 接线） |
+| ADR-015 随批次落地 | 临时副本删 `ADR-v2-015.md` | `check-icon-thumb-specs`（证据文档） |
+| `ImageFactoryIid` 与 SDK 8693 行一致 | 临时副本改 GUID 末位 | `check-icon-thumb-specs`、`check-transport-specs`（SDK 权威 GUID） |
+| `IShellItemImageFactory` vtable 只有 `GetImage` 一槽 | 临时副本改方法名 / 调换顺序 | `check-icon-thumb-specs`、`check-transport-specs`（vtable 顺序） |
+| `SIIGBF_*` 十个值 / `SIZE` / 两个 Win32 入口与 SDK 一致 | 临时副本改 `IconOnly` 为 `0x0044` | `check-icon-thumb-specs`（flags / SIZE） |
+| 白名单内不得出现 verb 调用、白名单外不得出现方法名 | 临时副本在白名单注入调用形态 | `check-icon-thumb-specs`、`check-boundaries` B-04 |
+| 禁止函数指针式 vtable | 临时副本注入 `Marshal.ReadIntPtr` | `check-icon-thumb-specs`（禁用模式） |
+| 真实 `GetImage` 调用链与四级档硬校验 | 临时副本改 `factory.GetImage(` / 删 `IconChannelRules.IsKnown` | `check-icon-thumb-specs`（Fs 宿主契约） |
+| 独立 STA 后台 worker | 临时副本删 `SetApartmentState(ApartmentState.STA)` | `check-icon-thumb-specs`（STA） |
+| 宿主默认关闭 | 临时副本把 `if (!enabled)` 改成 `if (false)` | `check-icon-thumb-specs`（默认关闭） |
+| 默认关闭时 `Provide` 不得绕过开关走 WIC 读文件 | 临时副本把 `if (!host.Enabled) return null;` 改成 `if (false) return null;` | `check-icon-thumb-specs`（Host 默认关闭） |
+| Host 不自行启用宿主 | 临时副本在 `IconThumbCommands.cs` 注入 `host.Enable();` | `check-icon-thumb-specs`（诚实标注） |
+| 每会话 `try-finally` 释放 COM 与 HBITMAP | 临时副本改 `Marshal.ReleaseComObject` | `check-icon-thumb-specs`（释放规则） |
+| 视频 8 秒看门狗 | 临时副本把 `worker.Join(budgetMs)` 改成无预算 `Join()` | `check-icon-thumb-specs`（看门狗） |
+| 派发只认同一份不可变 `IconThumbRequest` 快照 | 临时副本删 Host 侧 `new IconThumbRequest(` | `check-icon-thumb-specs`（Host 快照） |
+| 列表项图标位模板与后台取图 | 临时副本改 `list.ItemTemplate = template;` | `check-icon-thumb-specs`（呈现接线） |
+| 迟到结果按 `generation` 丢弃 | 临时副本删 `ThumbQueueRules.ShouldApplyResult(` | `check-icon-thumb-specs`（generation） |
+| CI 与单程序集工程资产纳入 R5 | 临时副本删 `check-icon-thumb-specs` 步骤 / 删 csproj 的 `IconThumbCommands.cs` 编译项 | `check-icon-thumb-specs`（构建 / CI 链） |
+| 规格 §8.1 不写实现批次 | 临时副本往 `design-v2.md` 塞 `\| R5 \|` 行 | `check-icon-thumb-specs`（规格一致性） |
+| Host 零 `using System.IO` / 仍为 C# 5 语法子集 | 临时副本注入 `using System.IO;` | `check-icon-thumb-specs`（分层纪律 / C# 5） |
+| 产品 `--selftest` 至少 8 组 R5 断言 | 临时副本改掉一组 `r5-` 前缀 | `check-icon-thumb-specs`（证据链） |
+| 真实 exe 编入 R5 且产品 `--selftest` 增 8 组断言 | CI `real-exe-build` / `real-exe-selftest`（不窗口、不枚举目录、不实例化 COM、不写 thumbcache） | CI 远端实测 |
+
+R5 的 23 类静态负向对照由 `tools/run_tests.py` 在临时副本里实测「变红 → 恢复 → 变绿」；
+真实系统图像工厂、HBITMAP 逐像素比对、WIC 解码介质、thumbcache 三段取证与图标呈现由 H1–H6 真机取证，本机与 CI 均不实例化 COM、不解码、不写缓存。
+R5 只把「可编译、可静态判定的取图与呈现链路」接入证据闭环：SDK 逐字对应声明 + 独立 STA + 8 秒看门狗 + 不可变快照 + `generation` 丢弃 + `try-finally` 释放，
+但宿主默认关闭（规格 §5.11 默认路径的明确偏差，见 `ADR-v2-015` D6），WIC 自解码改走 WPF 内置系统包装而不是手写第三套半的 COM vtable（同 ADR D2），**M1 / M2 / M3 仍不成立**。
+**CI 结论待回填**到 `docs/run-ledger.md` R5 行与 `ADR-v2-015.md`；本机不执行 C# 编译器。
+
 ## 未验证项（如实标注，不用「没报错」冒充通过）
 
 | 项 | 验证方式 | 状态 |
@@ -256,7 +289,7 @@ CI 结论已回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`：run `4387
 | 会话坏值归一 / `future-version` 拒读 | B3 C# runner（`session-*`） | CI 实测通过（run `42040769639`，本机未验证） |
 | 列表视图规则层（筛选 / 分组 / 开关 / 命中 / 状态栏 / 快捷键） | B4 C# runner（`group-*` / `filter-*` / `toggle-*` / `hit-*` / `status-*` / `keys-*`） | CI 实测通过（run `42224901915`，本机未验证） |
 | 菜单规则层（`menu-*` 十条） | B5 C# runner（`menu-native-default` … `menu-release`） | CI 实测通过（run `42232312609`，本机未验证） |
-| 产品程序集 verb 查询命中 0 次 | `check-menu-specs` / `check-menu-host-specs` / `check-open-source` 统一按 `com_policy.verb_hit` 扫描 `src/**/*.cs` | 本机实测通过（R4 后 105 个 .cs：唯一白名单只含 SDK vtable 的方法名声明、零调用；白名单外出现方法名即判红，注入调用形态亦必红） |
+| 产品程序集 verb 查询命中 0 次 | `check-menu-specs` / `check-menu-host-specs` / `check-icon-thumb-specs` / `check-open-source` 统一按 `com_policy.verb_hit` 扫描 `src/**/*.cs` | 本机实测通过（R5 后 107 个 .cs：唯一白名单只含 SDK vtable 的方法名声明、零调用；白名单外出现方法名即判红，注入调用形态亦必红） |
 | C# 算法 runner 在本机编译运行 | 本机不执行 C# 编译器；CI 远端以 C# 5 编译实跑 | 本机未验证 / CI 实测（见账本 B1 / B2 行） |
 | 真实 `IFileOperation` 搬运 / flags / 独立 STA / `ProgressSink` 与 `PostDeleteItem` | R2 `ShellComInterop.cs` + `ShellTransport.cs` 声明并编译；运行期由 H1–H6 取证 | **声明与编译已落地、运行期未验证**（§5.2「成熟绑定」偏差见 `ADR-v2-012`） |
 | 系统剪贴板 `CF_HDROP` 互通、`FileSystemWatcher` 实际订阅 | B3 / 发布线接入真实适配器 | **未验证**（B2 只编译 Fs 库，不运行） |
@@ -265,7 +298,8 @@ CI 结论已回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`：run `4387
 | Fs 适配器运行期行为 | CI 编译成 library，不运行 | **未验证**（结构 / 语法可判） |
 | 真实 WPF 窗口 / 消息循环 | R1 `src/QuadLite.Host/` + R3 `MainWindow` 重写 + CI `real-exe-build` | **部分实现**：窗口、消息循环、四档落位与工具栏已编译（CI 实测），XAML 明确不用；晃晃已在本机人工启动单 exe 并测试（`dist/single/BUILD.txt` 七字段实证，133,120 B），但具体交互用例与逐项结论未记录，四档实际渲染与事件绑定时序仍标「未验证」 |
 | 真实 WPF 列表控件 / 目录枚举 / 搬运命令 | R3 `PaneView` / `BrowseCommands` + CI `real-exe-build` | **部分实现**：ListBox、`IDirSource` 枚举、迟到批次丢弃与搬运请求链路已编译（CI 实测），运行期完全未验证 |
-| 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 / 图标与缩略图渲染 | R5 / 后续批次 | **未实现 / 未验证** |
+| 虚拟化面板 / 列头拖宽与筛选 UI / 拖放 / 框选交互 | 后续批次 | **未实现 / 未验证** |
+| 图标与缩略图呈现（列表项图标位 / HBITMAP 转换 / 两档自解码） | R5 `IconThumbCommands` + `PaneView` 图标位 + CI `real-exe-build` | **部分实现**：代码路径已编译（CI 实测），宿主默认关闭、CI 不取图不解码，真实呈现完全未验证 |
 | 真实 `NativeMenuHost` / `IContextMenu` / `IContextMenu2/3` COM 调用、HMENU 生命周期、`TrackPopupMenuEx` 消息循环 | R4 `NativeMenuHost.cs` + `check-menu-host-specs` + CI `real-exe-build` | **部分实现**：SDK 逐字对应声明、标准四步、owner 窗口五类消息转发、参数硬校验、快照派发与 try-finally 释放已编译（CI 实测）；宿主默认关闭、CI 不实例化 COM，运行期完全未验证 |
 | R4 宿主默认关闭与规格 §5.2「默认路径 = 系统原生菜单」的偏差 | 崩溃哨兵与 H1–H6 真机取证完成后另议 | **偏差已登记**（`ADR-v2-014` D5）；未启用时右键只回「未执行 / 未验证」 |
 | 纯 Win32 `GetMenuItemInfoW` 菜单文本读取 / L3 崩溃哨兵磁盘标记 / 自绘兜底 UI / L4 隔离宿主 | 后续批次 | **未实现 / 未验证** |
@@ -277,8 +311,11 @@ CI 结论已回填到 `docs/run-ledger.md` R4 行与 `ADR-v2-014.md`：run `4387
 | 可编辑地址栏、标签拖动 UI、此电脑层真实枚举与盘符取图、会话原子写与备份 | B3 后续批次 / Fs 层 | **未实现 / 未验证** |
 | WPF 应用真实构建 / 单文件 exe / exe 形态 `--selftest` | R1 `build.ps1` + CI `real-exe-build` / `real-exe-selftest` | **CI 实测**（run 号见账本 R1 行）；MSBuild 出包路径、`-SingleFile` 之外的打包形态与人工启动窗口仍 **未验证** |
 | 图标缩略图规则层（`icon-*` / `thumb-*` / `thumb-nowrite` 八组） | B6 C# runner（CI 编译实跑） | CI 实测通过：run `42343839222` / head `c0529da`，`csharp-runner` 步骤 `success` ⇒ 退出码 0 ⇒ 51 组 `ok=True`；本机静态门卡实测绿，见 `docs/run-ledger.md` B6 行 |
-| 真实 WIC 解码、`IShellItemImageFactory` 绑定、后台 worker、LRU 介质、视频 8 秒看门狗 | B6 后续批次 / 发布线 | **未实现 / 未验证**（只交纯函数判据，见 `ADR-v2-008` D6） |
-| 盘符图标逐像素比对、EXIF 像素级变换、图标与缩略图渲染控件 | B6 后续批次 | **未实现 / 未验证** |
+| `IShellItemImageFactory` 绑定、后台 worker、视频 8 秒看门狗 | R5 `IconThumbHost.cs` + `check-icon-thumb-specs` + CI `real-exe-build` | **部分实现**：SDK 逐字对应声明、独立 STA、`SIIGBF` flags、`Join` 预算与 try-finally 释放已编译（CI 实测）；宿主默认关闭、CI 不实例化 COM，运行期完全未验证 |
+| 真实 WIC 解码介质、LRU 介质、淘汰时机与可见优先队列实现 | 后续批次 / 发布线 | **未实现 / 未验证**（B6 只交纯函数判据，见 `ADR-v2-008` D6；R5 的 WPF 内置 WIC 包装与 `ThumbCacheRules.Key` 只是接入点） |
+| 盘符图标逐像素比对、EXIF 像素级变换 | 发布线 H1–H6 / 后续批次 | **未实现 / 未验证**（R5 只接 `IconChannelRules.DriveValidAt` 与 `ExifOrientationRules` 变换） |
+| R5 宿主默认关闭与 §5.11「默认渲染图标 / 缩略图」的偏差 | 崩溃哨兵与 H1–H6 真机取证完成后另议 | **偏差已登记**（`ADR-v2-015` D6）；未启用时列表项只有文字占位 |
+| Host 通过 `Uri` 使用 WPF 内置 WIC 包装读文件（未走 Fs 端口） | 分层收敛复核 | **偏差已登记**（`ADR-v2-015` D7）；门卡按字面判定 Host 零 `System.IO` |
 | 运行期零写入三段取证（注册表 / 应用目录 / 系统缓存） | 发布线 H3 | 未验证（源码只给出三个观察区与允许条件） |
 | App 图标缩略图状态内核库编译 | CI `csharp-app-compile`（8 个 .cs） | CI 实测通过：run `42343839222` 该步骤 `success`；只编译、不运行；本机不执行 C# 编译器 |
 | 真实产品 exe 的 `--selftest` / `--bench` / `--shot` / `--open-test` | R1 `--selftest` 由 CI 实跑；其余诊断装置未接入 | `--selftest` **CI 实测**（≥100 行 / `verdict: GREEN` / 退出码 0）；`--bench` / `--shot` / `--open-test` 与真实设备取证仍 **未实现 / 未验证** |
@@ -321,6 +358,8 @@ B8 起 CI 再增加 `check-release-specs`；`csharp-runner` 扩到 71 组（含 
 R1 起 CI 再增加 `check-realization-specs`、`real-exe-build` 与 `real-exe-selftest` 三步：前者核对 Host 入口 / 窗口 / 产品自测 / 真实构建链 / 规格未改等静态契约；后两步在远端**真的编译出单个 `QuadLite.exe` 并运行它的 `--selftest`**，断言报告 ≥100 行、末行 `verdict: GREEN`、退出码 0、`BUILD.txt` 七字段齐。既有 15 步的编译输入一字未改（Host 是独立新层）。`run_tests.py` 在 R1 时扩到 89 组 / 76 条负向对照；R2 起再扩到 102 组 / 88 条负向对照（新增 `check-transport-specs` 与 12 条托管 COM 契约对照），真实 `IFileOperation` 声明与 transport 编入 Fs 层但运行期完全未验证；R3 起再扩到 118 组 / 103 条负向对照（新增 `check-ui-specs` 与 15 条浏览 / 搬运 UI 契约对照），四层 103 个 .cs 一次编成单 exe，但 CI 不开窗口、不枚举目录、不实例化 COM。**首次实跑已通过**：run `42376298215`（head `a84b646`），十八个门卡 / 编译步骤逐项 `success`，其中 `check-realization-specs` / `real-exe-build` / `real-exe-selftest` 均 `success`，结论已回填到 `docs/run-ledger.md` R1 行与 `docs/adr/ADR-v2-011.md`；本机仍不执行 C# 编译器。真实 shell 绑定运行期、真实键鼠交互、四档实际渲染、原生菜单 COM 宿主、图标缩略图渲染与 H1–H6 取证一律维持「未验证」；列表控件 / 目录枚举 / 搬运命令已编译但运行期未验证。
 
 R4 起 CI 再增加 `check-menu-host-specs` 一步（共二十一个门卡 / 编译步骤）：静态核对 SDK 逐字对应声明、标准四步、消息转发、目标快照、释放、默认关闭与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第二套 COM 声明的 Fs 层与 Host 右键接线一并编进单 exe（四层 105 个 .cs），`real-exe-selftest` 增 8 组 R4 契约断言；`run_tests.py` 扩到 138 组 / 122 条负向对照（19 条 R4 逐条实测变红）。CI 仍只编译、不实例化 COM、不弹菜单、不开窗口，真实 shell 扩展与菜单运行期一律「未验证」；宿主默认关闭是 §5.2 默认路径的明确偏差（见 `ADR-v2-014` D5）。**首次实跑已通过**：run `43874542767`（head `fd11116`，含 R4 功能提交 `cfed91a` 与账本回填提交 `fd11116`），`gates` job 结论 `success`，二十一个门卡 / 编译步骤逐项 `success`，其中 `check-menu-host-specs` `success`、`csharp-fs-compile` `success`、`real-exe-build` `success` ⇒ 四层 105 个 .cs 一次编成单 exe 且 `BUILD.txt` 七字段齐、`real-exe-selftest` `success` ⇒ 产品 `--selftest` 报告 ≥100 行、`verdict: GREEN`、退出码 0（含 8 组 R4 断言）；按 jobs API 的 step `conclusion` 记录，日志端点匿名 403 未读原文。本机不执行 C# 编译器，结论只记 CI 远端实测。
+
+R5 起 CI 再增加 `check-icon-thumb-specs` 一步（共二十二个门卡 / 编译步骤）：静态核对第三套 COM 的 SDK GUID / 一槽 vtable / `SIIGBF` 十个值、四级通道与 WIC 白名单、EXIF 八值、单 worker 与 `generation` 丢弃、LRU 双闸与负缓存、8 秒看门狗与唯一写入例外、独立 STA / try-finally / 默认关闭、Host 呈现接线与分层纪律；`csharp-fs-compile` 与 `real-exe-build` 把含第三套 COM 声明的 Fs 层与 Host 图标接线一并编进单 exe（四层 107 个 .cs），`real-exe-selftest` 增 8 组 R5 契约断言；`run_tests.py` 扩到 162 组 / 145 条负向对照（23 条 R5 逐条实测变红）。CI 仍只编译、不实例化 COM、不解码、不写 thumbcache、不开窗口，真实系统图像工厂与图标呈现运行期一律「未验证」；宿主默认关闭是 §5.11 默认路径的明确偏差（见 `ADR-v2-015` D6）。**CI 结论待回填**，本机不执行 C# 编译器。
 
 ## 写入例外清单
 

@@ -111,7 +111,7 @@ foreach ($layer in @('QuadLite.Core', 'QuadLite.Fs', 'QuadLite.App', 'QuadLite.H
     $pattern = Join-Path $repo ('src\' + $layer + '\*.cs')
     $sources += @(Get-ChildItem -Path $pattern -ErrorAction Stop | ForEach-Object { $_.FullName })
 }
-# 当前四层合计 105 个 .cs（Core 78 + Fs 8 + App 12 + Host 7；R4 新增 Fs 1 + Host 1）。
+# 当前四层合计 107 个 .cs（Core 78 + Fs 9 + App 12 + Host 8；R5 新增 Fs 1 + Host 1）。
 # 这里只防「源码集意外为空 / 漏收某层」，不把具体文件数写成硬契约。
 if ($sources.Count -lt 90) {
     Write-Output "BUILD: unexpected source count $($sources.Count)"
@@ -154,7 +154,7 @@ if ($satellites.Count -gt 0) {
     $selfcheck = 'PASS (single assembly, BUILD.txt only companion)'
 }
 if ($SingleFile) { $note = 'Note: -SingleFile explicitly requested; single assembly is already the default.' }
-else { $note = 'Note: real WPF host built; R4 native-menu COM host wired but disabled by default; shell / thumbnails / DPI / H1-H6 evidence still 未验证.' }
+else { $note = 'Note: real WPF host built; R4 native-menu and R5 icon/thumbnail hosts wired but disabled by default; shell / menu / thumbnail rendering / DPI / H1-H6 evidence still 未验证.' }
 
 Write-BuildManifest -ExeSize $exeItem.Length -ExeHash $exeHash -Selfcheck $selfcheck `
     -Resources 'none (all four layers compiled into QuadLite.exe)' -Note $note
